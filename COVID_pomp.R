@@ -133,15 +133,28 @@ rmeas_deaths <- Csnippet("double tol = 1e-16;
                   ")
 # define evaluation of model prob density function
 dmeas_deaths <- Csnippet("double tol = 1e-16;
-                   lik = dpois(deaths, D_new + tol, give_log);
+                   if(ISNA(deaths)) {
+                    lik = 0;
+                   } else {
+                    lik = dpois(deaths, D_new + tol, 1);
+                   }
+                   lik = (give_log) ? lik : exp(lik);
+                   //lik = dpois(deaths, D_new + tol, give_log);
                   ")
+
 # define random simulator of measurement
 rmeas_hosp <- Csnippet("double tol = 1e-16;
                    hosp = rpois(H + tol);
                   ")
 # define evaluation of model prob density function
 dmeas_hosp <- Csnippet("double tol = 1e-16;
-                   lik = dpois(hosp, H + tol, give_log);
+                  if(ISNA(hosp)) {  
+                    lik = 0;
+                   } else {
+                    lik = dpois(hosp, H + tol, 1);
+                   }
+                   lik = (give_log) ? lik : exp(lik);
+                   //lik = dpois(hosp, H + tol, give_log);
                   ")
 
 # parameters to transform
