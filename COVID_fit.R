@@ -25,6 +25,7 @@ focal.county      <- "King"  ## County to fit to
 ## !!! Now contained within location_params.csv
 nparams           <- 5               ## number of parameter sobol samples (more = longer)
 nsim              <- 200             ## number of simulations for each fitted beta0 for dynamics
+download.new_data <- FALSE           ## Grab up-to-date data from NYT?
 
 needed_packages <- c(
     "pomp"
@@ -48,8 +49,12 @@ registerDoParallel(cores = usable.cores)
 source("COVID_pomp.R")
  
 if (fit.with == "D") {
-#deaths <- fread("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv")
-deaths  <- read.csv("us-counties.txt")
+  if (download.new_data) {
+deaths <- fread("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv")    
+  } else {
+deaths  <- read.csv("us-counties.txt")    
+  }
+
 deaths  <- deaths %>% mutate(date = as.Date(date)) %>% filter(county == focal.county)
 deaths  <- deaths %>% dplyr::filter(date < max(date) - fit.minus)
 } else if (fit.with == "H") {
