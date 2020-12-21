@@ -3,7 +3,8 @@
 ##################################
 
 set.seed(10001)
-fitting           <- TRUE     ## Small change in pomp objects if fitting or simulating
+fitting           <- TRUE          ## Small change in pomp objects if fitting or simulating
+last_date         <- "2020-06-03"  ## Last possible date to consider for this model
 fit.minus         <- 0        ## Use data until X days prior to the present
 more.params.uncer <- FALSE    ## Fit with more (FALSE) or fewer (TRUE) point estimates for a number of parameters
 fit.E0            <- TRUE     ## Also fit initial # that starts the epidemic?
@@ -18,7 +19,7 @@ n.mif_runs        <- 2        ## mif2 fitting parameters
 n.mif_length      <- 100
 n.mif_particles   <- 600
 n.mif_rw.sd       <- 0.02
-focal.county      <- "King"  ## County to fit to
+focal.county      <- "Santa Clara"  ## County to fit to
 ## !!! Curently parameters exist for Santa Clara, Miami-Dade, New York City, King, Los Angeles
 ## !!! But only Santa Clara explored
 # county.N        <- 1.938e6         ## County population size
@@ -51,10 +52,11 @@ source("COVID_pomp.R")
 if (fit.with == "D") {
   if (download.new_data) {
 deaths <- fread("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv")    
+deaths <- deaths %>% filter(date <= last_date)
   } else {
-deaths  <- read.csv("us-counties.txt")    
+deaths  <- read.csv("us-counties.txt")   
+deaths  <- deaths %>% filter(date <= last_date)
   }
-
 deaths  <- deaths %>% mutate(date = as.Date(date)) %>% filter(county == focal.county)
 deaths  <- deaths %>% dplyr::filter(date < max(date) - fit.minus)
 } else if (fit.with == "H") {
@@ -401,8 +403,9 @@ library(dplyr)
   
 }
   
-gg.fit <- mifs_local %>%
-  traces() %>%
+mif_traces <- mifs_local %>% traces()
+  
+gg.fit <- mif_traces %>%
   melt() %>%
   filter(
     variable == "loglik" | 
@@ -577,6 +580,7 @@ if (((i / 20) %% 1) == 0) {
   , fixed_params     = fixed_params
   , dynamics_summary = SEIR.sim.ss.t.ci
   , param_array      = param_array
+  , mif_traces       = mif_traces
    ), paste(
      paste("output/"
        , paste(focal.county, fit_to_sip, more.params.uncer, fit.minus, Sys.Date(), "temp", sep = "_")
@@ -592,6 +596,7 @@ saveRDS(
   , fixed_params     = fixed_params
   , dynamics_summary = SEIR.sim.ss.t.ci
   , param_array      = param_array
+  , mif_traces       = mif_traces
    ), paste(
      paste("output/"
        , paste(focal.county, fit_to_sip, more.params.uncer, fit.minus, Sys.Date(), "final", sep = "_")
