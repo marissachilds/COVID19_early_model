@@ -24,7 +24,7 @@ focal.county      <- "Santa Clara"  ## County to fit to
 ## !!! But only Santa Clara explored
 # county.N        <- 1.938e6         ## County population size
 ## !!! Now contained within location_params.csv
-nparams           <- 5               ## number of parameter sobol samples (more = longer)
+nparams           <- 2               ## number of parameter sobol samples (more = longer)
 nsim              <- 200             ## number of simulations for each fitted beta0 for dynamics
 download.new_data <- FALSE           ## Grab up-to-date data from NYT?
 

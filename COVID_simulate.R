@@ -13,10 +13,10 @@ focal.county       <- "Santa Clara"
 fitting            <- FALSE   ## Small change in pomp objects if fitting or simulating
 ## TRUE if COVID_fit previously run, FALSE if COVID_fit was just run and global environment is still full
 use.rds            <- TRUE    
-rds.name           <- "output/Santa Clara_FALSE_FALSE_0_2020-04-25_final.Rds"
+rds.name           <- "output/Santa Clara_TRUE_FALSE_0_2020-12-21_final.Rds"
 more.params.uncer  <- FALSE   ## Fit with more (FALSE) or fewer (TRUE) point estimates for a number of parameters
 nsim               <- 200     ## Number of epidemic simulations for each parameter set
-fit.E0             <- FALSE   ## Was E0 also fit?
+fit.E0             <- TRUE    ## Was E0 also fit?
 meas.nb            <- TRUE    ## Negative binomial measurement process?
 ## Intervention scenarios. Only one at a time allowed right now! 
 inf_iso            <- FALSE   ## Do we ever reduce from shelter in place to some form of strong/moderate social distancing?
@@ -32,10 +32,11 @@ state.plot         <- "D"     ## State variable for plotting (Hospit [H], Death 
 
 loglik.thresh      <- 2       ## Keep parameter sets with a likelihood within top X loglik units
 params.all         <- FALSE   ## Keep all fitted parameters above loglik thresh?...
-nparams            <- 50      ## ...if FALSE, pick a random subset for speed
+nparams            <- 50      ## ...if FALSE, pick the top X by loglik to use
 plot.log10         <- FALSE   ## Plot on a log10 scale or not
 fit.with           <- "D"     ## Needed again to organize data correctly 
 fit.minus          <- 0       ## Use data until X days prior to the present
+download.new_data  <- FALSE           ## Grab up-to-date data from NYT?
 
 ## Required packages to run this code
 needed_packages <- c(
@@ -61,10 +62,15 @@ source("COVID_pomp.R")
 if (fit.with == "D") {
   ## Scrape death data from the NYT github repo to stay up to date or load a previously saved dataset
    ## Only used in this script for plotting purposes
-#deaths <- fread("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv")
+  if (download.new_data) {
+deaths <- fread("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv")
+deaths <- deaths %>% filter(date <= last_date)
+  } else {
 deaths  <- read.csv("us-counties.txt")
+deaths  <- deaths %>% filter(date <= last_date)
 deaths  <- deaths %>% mutate(date = as.Date(date)) %>% filter(county == focal.county)
 deaths  <- deaths %>% dplyr::filter(date < max(date) - fit.minus)
+  }
 } else if (fit.with == "H") {
 ## See warning notes in COVID_fit.R
 hospit  <- read.csv("contra_costa/ccc_data.csv")
@@ -88,7 +94,7 @@ fixed_params     <- prev.fit[["fixed_params"]]
  ## and keep only the best fits as defined by loglik
 variable_params <- variable_params %>% 
   filter(log_lik != 0) %>% 
-# filter(log_lik == max(log_lik)) ## only used for manuscript dyanmic trajectory plots
+# filter(log_lik == max(log_lik)) ## only used for manuscript dynanmic trajectory plots
   filter(log_lik > (max(log_lik) - loglik.thresh))
 
 ## A few adjustments for preprint counterfactuals and other scenarios
@@ -106,7 +112,10 @@ variable_params <- variable_params %>%
   ) 
 
 if (!params.all) {
-  variable_params <- variable_params[sample(1:nrow(variable_params), nparams), ]
+  ## old option to pick a random X
+# variable_params <- variable_params[sample(1:nrow(variable_params), nparams), ]
+  ## new option to subset to top X
+  variable_params <- variable_params %>% arrange(desc(log_lik)) %>% slice(1:nparams)
 }
 
 ####
