@@ -51,10 +51,10 @@ variable_params <- variable_params %>% dplyr::select(-E0)
 }
 
 variable_params <- variable_params %>% mutate(
-    sim_start  = as.Date(sim_start, origin = as.Date("2020-01-01"))
-  , int_start1 = as.Date(round(int_start1), origin = as.Date("2020-01-01"))
+    sim_start  = as.Date(sim_start, origin = as.Date("2019-12-31"))
+  , int_start1 = as.Date(round(int_start1), origin = as.Date("2019-12-31"))
   , int_start2 = as.Date(round(location_params[location_params$Parameter == "int_start2", ]$est)
-    , origin = as.Date("2020-01-01")) 
+    , origin = as.Date("2019-12-31")) 
  ) %>% mutate(
     int_length1  = round(int_start2 - int_start1)
   ## Column for estimated beta0 (!! see lower down for desire to store likelyhood profile to define pmcmc runs)
