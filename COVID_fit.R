@@ -5,7 +5,7 @@
 set.seed(10001)
 fitting           <- TRUE          ## Small change in pomp objects if fitting or simulating
 last_date         <- "2020-06-03"  ## Last possible date to consider for this model
-fit.minus         <- 0        ## Use data until X days prior to the present
+# fit.minus         <- 0        ## Use data until X days prior to the present # no longer in use
 more.params.uncer <- FALSE    ## Fit with more (FALSE) or fewer (TRUE) point estimates for a number of parameters
 fit.E0            <- TRUE     ## Also fit initial # that starts the epidemic?
 ## more.params.uncer = FALSE is more supported, uses parameter ranges with more research and reacts to choice of focal.county if possible
@@ -53,24 +53,30 @@ source("COVID_pomp.R")
  
 if (fit.with == "D") {
   if (download.new_data) {
-deaths <- fread("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv")    
-deaths <- deaths %>% filter(date <= last_date)
+    deaths <- fread("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv")    
   } else {
-deaths  <- read.csv("us-counties.txt")   
-deaths  <- deaths %>% filter(date <= last_date)
+    deaths  <- read.csv("us-counties.txt")   
   }
-deaths  <- deaths %>% mutate(date = as.Date(date)) %>% filter(county == focal.county)
-deaths  <- deaths %>% dplyr::filter(date < max(date) - fit.minus)
+  deaths    <- deaths %>% 
+    mutate(date = as.Date(date)) %>% filter(county == focal.county)
+  
+  # last_date can't be later than the last date in existing data
+  last_date <- min(as.Date(last_date), max(deaths$date))
+  deaths    <- deaths %>% filter(date <= as.Date(last_date)) 
+    
 } else if (fit.with == "H") {
 ## !! Not supported right now for SCC, but placing here for completeness
    ## !! Right now only usable for CCC
-hospit     <- read.csv("contra_costa/ccc_data.csv")
+hospit     <- read.csv("contra_costa/ccc_data.csv") %>% 
+  mutate(date = as.Date(REPORT_DATE)) 
+
+# last_date can't be later than the last date in existing data
+last_date = min(as.Date(last_date), max(hospit$date))
 hospit     <- hospit %>% 
-  mutate(date = as.Date(REPORT_DATE)) %>% 
   filter(CURRENT_HOSPITALIZED != "NULL") %>% 
   mutate(ch = as.numeric(as.character(CURRENT_HOSPITALIZED))) %>% 
-  dplyr::select(date, ch)
-hospit    <- hospit %>% dplyr::filter(date < max(date) - fit.minus)  
+  dplyr::select(date, ch) %>% 
+  dplyr::filter(date <= as.Date(last_date))
 }
 
 if (!more.params.uncer) {
@@ -623,7 +629,7 @@ if (((i / 20) %% 1) == 0) {
   , mif_traces       = mif_traces
    ), paste(
      paste("output/"
-       , paste(focal.county, fit_to_sip, more.params.uncer, fit.minus, Sys.Date(), "temp", sep = "_")
+       , paste(focal.county, fit_to_sip, more.params.uncer, last_date, Sys.Date(), "temp", sep = "_")
          , sep = "")
      , "Rds", sep = "."))
 }
@@ -639,7 +645,7 @@ saveRDS(
   , mif_traces       = mif_traces
    ), paste(
      paste("output/"
-       , paste(focal.county, fit_to_sip, more.params.uncer, fit.minus, Sys.Date(), "final", sep = "_")
+       , paste(focal.county, fit_to_sip, more.params.uncer, last_date, Sys.Date(), "final", sep = "_")
          , sep = "")
      , "Rds", sep = "."))
  
