@@ -26,7 +26,7 @@ focal.county      <- "Santa Clara"  ## County to fit to
 ## !!! But only Santa Clara explored
 # county.N        <- 1.938e6         ## County population size
 ## !!! Now contained within location_params.csv
-nparams           <- 1               ## number of parameter sobol samples (more = longer)
+nparams           <- 20               ## number of parameter sobol samples (more = longer)
 nsim              <- 200             ## number of simulations for each fitted beta0 for dynamics
 download.new_data <- FALSE           ## Grab up-to-date data from NYT?
 
@@ -163,11 +163,12 @@ county.data <- deaths %>%
   mutate(deaths_cum = deaths) %>% 
   mutate(deaths = deaths_cum - lag(deaths_cum)) %>% 
   replace_na(list(deaths = 0)) %>%
-  dplyr::select(-deaths_cum)
+  dplyr::select(-deaths_cum) %>% 
+  mutate(deaths = ifelse(date <= latest.sim_start, NA, deaths))
 
 ## Convert all 0 values from day 0 through the assumed last possible start date in order
  ## to ensure all start dates have the same # of data points for likelihood comparison
-county.data[county.data$date <= latest.sim_start, ]$deaths <- NA
+# county.data[county.data$date <= latest.sim_start, ]$deaths <- NA
   
 ## Add days from the start of the sim to the first recorded day in the dataset
 #county.data <- rbind(
