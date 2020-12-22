@@ -40,7 +40,7 @@ soc_dist_level_sip,,0.2,0.45,New York City,strength of the primary form of socia
 N,8399000,,,New York City,population size
 IFR,,0.00903,0.01121,New York City,mortality rate of symptomatic infections
 E0,,3,6,Santa Clara,starting epidemic size
-sim_start,,19,35,Santa Clara,beginning date of the epidemic
+sim_start,,19,65,Santa Clara,beginning date of the epidemic
 int_start1,,60,69,Santa Clara,any first wave social distancing intervention
 int_length1,,,,Santa Clara,length of the first wave of social distancing
 int_start2,77,,,Santa Clara,primary form of social distancing implemented
