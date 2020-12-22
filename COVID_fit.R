@@ -4,8 +4,8 @@
 
 set.seed(10001)
 fitting           <- TRUE          ## Small change in pomp objects if fitting or simulating
-last_date         <- "2020-06-03"  ## Last possible date to consider for this model
-# fit.minus         <- 0        ## Use data until X days prior to the present # no longer in use
+last_date         <- "2020-04-22"  ## Last possible date to consider for this model
+# fit.minus       <- 0        ## Use data until X days prior to the present # no longer in use
 more.params.uncer <- FALSE    ## Fit with more (FALSE) or fewer (TRUE) point estimates for a number of parameters
 fit.E0            <- TRUE     ## Also fit initial # that starts the epidemic?
 ## more.params.uncer = FALSE is more supported, uses parameter ranges with more research and reacts to choice of focal.county if possible
@@ -16,7 +16,7 @@ fit.with          <- "D"      ## Fit with D (deaths) or H (hospitalizations)
 fit_to_sip        <- TRUE     ## Fit beta0 and shelter in place simultaneously?
 import_cases      <- FALSE    ## Use importation of cases?
 n.mif_runs        <- 6        ## mif2 fitting parameters
-n.mif_length      <- 100
+n.mif_length      <- 200
 n.mif_particles   <- 600
 n.mif_rw.sd       <- 0.02
 n.mif_particles_LL<- 5000     ## number of particles for calculating LL (10000 used in manuscript, 5000 suggested to debug/check code)
@@ -26,7 +26,7 @@ focal.county      <- "Santa Clara"  ## County to fit to
 ## !!! But only Santa Clara explored
 # county.N        <- 1.938e6         ## County population size
 ## !!! Now contained within location_params.csv
-nparams           <- 2               ## number of parameter sobol samples (more = longer)
+nparams           <- 1               ## number of parameter sobol samples (more = longer)
 nsim              <- 200             ## number of simulations for each fitted beta0 for dynamics
 download.new_data <- FALSE           ## Grab up-to-date data from NYT?
 
@@ -633,6 +633,9 @@ if (((i / 20) %% 1) == 0) {
          , sep = "")
      , "Rds", sep = "."))
 }
+
+print(checktime)
+print(i)
 
 }
 
