@@ -15,7 +15,7 @@ usable.cores      <- 2        ## Number of cores to use to fit
 fit.with          <- "D"      ## Fit with D (deaths) or H (hospitalizations) 
 fit_to_sip        <- TRUE     ## Fit beta0 and shelter in place simultaneously?
 import_cases      <- FALSE    ## Use importation of cases?
-n.mif_runs        <- 2        ## mif2 fitting parameters
+n.mif_runs        <- 6        ## mif2 fitting parameters
 n.mif_length      <- 100
 n.mif_particles   <- 600
 n.mif_rw.sd       <- 0.02
@@ -100,6 +100,10 @@ location_params     <- location_params %>% filter(location == focal.county)
 fixed_params        <- c(fixed_params
   , N = location_params[location_params$Parameter == "N", ]$est)
 
+## latest possible assumed epidemic start date
+latest.sim_start <- as.Date(location_params[location_params$Parameter == "sim_start", ]$upr
+  , origin = "2019-12-31")
+
 if (more.params.uncer) {
 source("variable_params_more.R")
 } else {
@@ -160,6 +164,10 @@ county.data <- deaths %>%
   mutate(deaths = deaths_cum - lag(deaths_cum)) %>% 
   replace_na(list(deaths = 0)) %>%
   dplyr::select(-deaths_cum)
+
+## Convert all 0 values from day 0 through the assumed last possible start date in order
+ ## to ensure all start dates have the same # of data points for likelihood comparison
+county.data[county.data$date <= latest.sim_start, ]$deaths <- NA
   
 ## Add days from the start of the sim to the first recorded day in the dataset
 #county.data <- rbind(
