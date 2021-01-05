@@ -2,7 +2,7 @@
 ## Fit COVID epidemic with pomp ##
 ##################################
 
-set.seed(10001)
+set.seed(879897)
 fitting           <- TRUE          ## Small change in pomp objects if fitting or simulating
 last_date         <- "2020-04-22"  ## Last possible date to consider for this model
 # fit.minus       <- 0        ## Use data until X days prior to the present # no longer in use
@@ -16,8 +16,8 @@ fit.with          <- "D"      ## Fit with D (deaths) or H (hospitalizations)
 fit_to_sip        <- TRUE     ## Fit beta0 and shelter in place simultaneously?
 import_cases      <- FALSE    ## Use importation of cases?
 n.mif_runs        <- 6        ## mif2 fitting parameters
-n.mif_length      <- 200
-n.mif_particles   <- 600
+n.mif_length      <- 300
+n.mif_particles   <- 1000
 n.mif_rw.sd       <- 0.02
 n.mif_particles_LL<- 5000     ## number of particles for calculating LL (10000 used in manuscript, 5000 suggested to debug/check code)
 
@@ -26,7 +26,7 @@ focal.county      <- "Santa Clara"  ## County to fit to
 ## !!! But only Santa Clara explored
 # county.N        <- 1.938e6         ## County population size
 ## !!! Now contained within location_params.csv
-nparams           <- 1               ## number of parameter sobol samples (more = longer)
+nparams           <- 100             ## number of parameter sobol samples (more = longer)
 nsim              <- 200             ## number of simulations for each fitted beta0 for dynamics
 download.new_data <- FALSE           ## Grab up-to-date data from NYT?
 
@@ -150,6 +150,8 @@ param_array <- array(
 dimnames(param_array)[[3]] <- c("beta0", "loglik", "loglik.se")  
 }
 }
+
+mif_traces.all <- vector("list", length = nparams)
 
 for (i in 1:nrow(variable_params)) {
 
@@ -527,6 +529,8 @@ SEIR.sim <- do.call(
                     mutate(.id = "median"))
     }
 
+mif_traces.all[[i]] <- mif_traces
+
 ## summarize epidemic
 {
 SEIR.sim.s  <- SEIR.sim  %>% 
@@ -619,14 +623,14 @@ variable_params[i, ]$R0 <- with(variable_params[i, ], covid_R0(
   beta0est = beta0est, fixed_params = c(fixed_params, unlist(variable_params[i, ]))
   , sd_strength = 1, prop_S = 1))
 
-if (((i / 20) %% 1) == 0) {
+if (((i / 5) %% 1) == 0) {
  saveRDS(
    list(
     variable_params  = variable_params
   , fixed_params     = fixed_params
   , dynamics_summary = SEIR.sim.ss.t.ci
   , param_array      = param_array
-  , mif_traces       = mif_traces
+  , mif_traces       = mif_traces.all
    ), paste(
      paste("output/"
        , paste(focal.county, fit_to_sip, more.params.uncer, last_date, Sys.Date(), "temp", sep = "_")
@@ -645,7 +649,7 @@ saveRDS(
   , fixed_params     = fixed_params
   , dynamics_summary = SEIR.sim.ss.t.ci
   , param_array      = param_array
-  , mif_traces       = mif_traces
+  , mif_traces       = mif_traces.all
    ), paste(
      paste("output/"
        , paste(focal.county, fit_to_sip, more.params.uncer, last_date, Sys.Date(), "final", sep = "_")
