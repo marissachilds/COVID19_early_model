@@ -12,21 +12,20 @@ fit.E0            <- TRUE     ## Also fit initial # that starts the epidemic?
 ## !!!!! For FALSE update parameters in location_params.csv
 ## more.params.uncer = TRUE  is less suppored, raw parameter values that can be adjusted manually
 usable.cores      <- 2        ## Number of cores to use to fit
-fit.with          <- "D"      ## Fit with D (deaths) or H (hospitalizations) 
 fit_to_sip        <- TRUE     ## Fit beta0 and shelter in place simultaneously?
 import_cases      <- FALSE    ## Use importation of cases?
-n.mif_runs        <- 6        ## mif2 fitting parameters
-n.mif_length      <- 300
-n.mif_particles   <- 1000
+n.mif_runs        <- 1#6        ## mif2 fitting parameters
+n.mif_length      <- 50#300
+n.mif_particles   <- 200#1000
 n.mif_rw.sd       <- 0.02
-n.mif_particles_LL<- 5000     ## number of particles for calculating LL (10000 used in manuscript, 5000 suggested to debug/check code)
+n.mif_particles_LL<- 500#5000     ## number of particles for calculating LL (10000 used in manuscript, 5000 suggested to debug/check code)
 
 focal.county      <- "Santa Clara"  ## County to fit to
 ## !!! Curently parameters exist for Santa Clara, Miami-Dade, New York City, King, Los Angeles
 ## !!! But only Santa Clara explored
 # county.N        <- 1.938e6         ## County population size
 ## !!! Now contained within location_params.csv
-nparams           <- 100             ## number of parameter sobol samples (more = longer)
+nparams           <- 2#100             ## number of parameter sobol samples (more = longer)
 nsim              <- 200             ## number of simulations for each fitted beta0 for dynamics
 download.new_data <- FALSE           ## Grab up-to-date data from NYT?
 
@@ -51,34 +50,17 @@ registerDoParallel(cores = usable.cores)
 ## Bring in pomp objects
 source("COVID_pomp.R")
  
-if (fit.with == "D") {
-  if (download.new_data) {
-    deaths <- fread("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv")    
-  } else {
-    deaths  <- read.csv("us-counties.txt")   
-  }
-  deaths    <- deaths %>% 
-    mutate(date = as.Date(date)) %>% filter(county == focal.county)
-  
-  # last_date can't be later than the last date in existing data
-  last_date <- min(as.Date(last_date), max(deaths$date))
-  deaths    <- deaths %>% filter(date <= as.Date(last_date)) 
-    
-} else if (fit.with == "H") {
-## !! Not supported right now for SCC, but placing here for completeness
-   ## !! Right now only usable for CCC
-hospit     <- read.csv("contra_costa/ccc_data.csv") %>% 
-  mutate(date = as.Date(REPORT_DATE)) 
-
-# last_date can't be later than the last date in existing data
-last_date = min(as.Date(last_date), max(hospit$date))
-hospit     <- hospit %>% 
-  filter(CURRENT_HOSPITALIZED != "NULL") %>% 
-  mutate(ch = as.numeric(as.character(CURRENT_HOSPITALIZED))) %>% 
-  dplyr::select(date, ch) %>% 
-  dplyr::filter(date <= as.Date(last_date))
+if (download.new_data) {
+deaths <- fread("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv")    
+} else {
+deaths  <- read.csv("us-counties.txt")   
 }
-
+deaths    <- deaths %>% mutate(date = as.Date(date)) %>% filter(county == focal.county)
+  
+# last_date can't be later than the last date in existing data
+last_date <- min(as.Date(last_date), max(deaths$date))
+deaths    <- deaths %>% filter(date <= as.Date(last_date)) 
+    
 if (!more.params.uncer) {
 params <- read.csv("params.csv", stringsAsFactors = FALSE)
 } else {
@@ -93,22 +75,20 @@ if (!import_cases) {fixed_params["import_rate"] <- 0}
 location_params     <- read.csv("location_params.csv", stringsAsFactors = FALSE)
 location_params     <- location_params %>% filter(location == focal.county)
 
-## debug
-#location_params[location_params$Parameter == "sim_start", ]$lwr <- 38
-#location_params[location_params$Parameter == "sim_start", ]$upr <- 53
-
-fixed_params        <- c(fixed_params
-  , N = location_params[location_params$Parameter == "N", ]$est)
+fixed_params        <- c(fixed_params, N = location_params[location_params$Parameter == "N", ]$est)
 
 ## latest possible assumed epidemic start date
-latest.sim_start <- as.Date(location_params[location_params$Parameter == "sim_start", ]$upr
-  , origin = "2019-12-31")
+latest.sim_start <- as.Date(location_params[location_params$Parameter == "sim_start", ]$upr, origin = "2019-12-31")
 
 if (more.params.uncer) {
 source("variable_params_more.R")
 } else {
 source("variable_params_less.R")
 }
+
+## Repeat each entry for the number of repeat mif2
+variable_params <- variable_params[rep(seq_len(nrow(variable_params)), each = n.mif_runs), ] %>% 
+  mutate(mif2_iter = rep(seq(1, n.mif_runs), nparams))
 
 ## Run parameters
 sim_start  <- variable_params$sim_start
@@ -123,40 +103,11 @@ SEIR.sim.ss.t.ci <- data.frame(
 , upr      = numeric(0)
 , paramset = numeric(0))
 
-if (fit_to_sip) {
-## beta0, soc_dist_level_sip, loglik
-if (fit.E0) {
-param_array <- array(
-  data = 0
-, dim  = c(nparams, n.mif_runs, 5))
-dimnames(param_array)[[3]] <- c("beta0", "soc_dist_level_sip", "loglik", "loglik.se", "E_init")  
-} else {
-param_array <- array(
-  data = 0
-, dim  = c(nparams, n.mif_runs, 4))
-dimnames(param_array)[[3]] <- c("beta0", "soc_dist_level_sip", "loglik", "loglik.se")  
-}
-} else {
-## beta0, loglik
-if (fit.E0) {
-param_array <- array(
-  data = 0
-, dim  = c(nparams, n.mif_runs, 4))  
-dimnames(param_array)[[3]] <- c("beta0", "loglik", "loglik.se", "E_init")  
-} else {
-param_array <- array(
-  data = 0
-, dim  = c(nparams, n.mif_runs, 3))  
-dimnames(param_array)[[3]] <- c("beta0", "loglik", "loglik.se")  
-}
-}
+fit.out <- foreach(i = 1:nrow(variable_params), .combine = list) %dopar%  {
+    
+library(pomp)
+library(dplyr)
 
-mif_traces.all <- vector("list", length = nparams)
-
-for (i in 1:nrow(variable_params)) {
-
-if (fit.with == "D") {
-  
   ## Adjust the data for the current start date
 county.data <- deaths %>% 
   mutate(day = as.numeric(date - variable_params[i, ]$sim_start)) %>% 
@@ -167,28 +118,6 @@ county.data <- deaths %>%
   replace_na(list(deaths = 0)) %>%
   dplyr::select(-deaths_cum) %>% 
   mutate(deaths = ifelse(date <= latest.sim_start, NA, deaths))
-
-## Convert all 0 values from day 0 through the assumed last possible start date in order
- ## to ensure all start dates have the same # of data points for likelihood comparison
-# county.data[county.data$date <= latest.sim_start, ]$deaths <- NA
-  
-## Add days from the start of the sim to the first recorded day in the dataset
-#county.data <- rbind(
-#  data.frame(
-#    day    = seq(1:(min(county.data$day) - 1))
-#  , date   = as.Date(seq(1:(min(county.data$day) - 1)), origin = variable_params[i, ]$sim_start)
-#  , deaths = 0
-#  )
-#, county.data
-#  )
-
-} else if (fit.with == "H") {
-  
-## Adjust the data for the current start date
-county.data <- hospit %>% mutate(day = as.numeric(date - variable_params[i, ]$sim_start)) 
-names(county.data)[2] <- "hosp"  
-
-}
 
 ## Create intervention covariate table for the full forecast
 if (fit_to_sip) {
@@ -266,12 +195,8 @@ covid.fitting <- county.data %>%
   , t0         = 1
   , covar      = intervention.forecast
   , rprocess   = euler(sir_step, delta.t = 1/6)
-  , rmeasure   = { 
-   if (fit.with == "D") { rmeas_deaths } else if (fit.with == "H") { rmeas_hosp }
-  }
-  , dmeasure   = {
-   if (fit.with == "D") { dmeas_deaths } else if (fit.with == "H") { dmeas_hosp }
-  }
+  , rmeasure   = rmeas_deaths
+  , dmeasure   = dmeas_deaths 
   , rinit      = sir_init
   , partrans   = par_trans
   , accumvars  = accum_names
@@ -281,12 +206,6 @@ covid.fitting <- county.data %>%
 if (variable_params[i, ]$beta0est == 0) {
 
 if (!more.params.uncer) {
-
-checktime <- system.time({
-mifs_local <- foreach(j = 1:n.mif_runs, .combine = c) %dopar%  {
-    
-library(pomp)
-library(dplyr)
 
 mifs_temp <- try(silent = TRUE, { covid.fitting %>%
   mif2(
@@ -320,44 +239,36 @@ mifs_temp <- try(silent = TRUE, { covid.fitting %>%
     }
   }
   )
-  , Np     = n.mif_particles
-  , Nmif   = n.mif_length
+  , Np                  = n.mif_particles
+  , Nmif                = n.mif_length
   , cooling.fraction.50 = 0.5
-  , rw.sd  = {
+  , rw.sd               = {
     if (fit_to_sip) {
       if (fit.E0) {
-    rw.sd(beta0 = n.mif_rw.sd, soc_dist_level_sip = n.mif_rw.sd, E_init = n.mif_rw.sd)        
+    rw.sd(
+      beta0              = n.mif_rw.sd
+    , soc_dist_level_sip = n.mif_rw.sd
+    , E_init             = ivp(n.mif_rw.sd)
+      )       
       } else {
     rw.sd(beta0 = n.mif_rw.sd, soc_dist_level_sip = n.mif_rw.sd)        
       }
     } else {
       if (fit.E0) {
-    rw.sd(beta0 = n.mif_rw.sd, E_init = n.mif_rw.sd)        
+    rw.sd(
+      beta0  = n.mif_rw.sd
+    , E_init = ivp(n.mif_rw.sd)
+      )        
       } else {
     rw.sd(beta0 = n.mif_rw.sd)        
       }
     }
   }
-)})
+)
+  })
   
-ll <- try(silent = TRUE, {replicate(10, mifs_temp %>% pfilter(Np = n.mif_particles_LL) %>% logLik())})
-ll <- try(silent = TRUE, {logmeanexp(ll, se = TRUE)})
-
-return(list(mifs_temp, ll))
-
-mifs_temp
-}
-
-})
-
 } else {
   
-checktime  <- system.time({
-mifs_local <- foreach(j = 1:n.mif_runs, .combine = c) %dopar%  {
-    
-library(pomp)
-library(dplyr)
-
 mifs_temp <- try(silent = TRUE, { covid.fitting %>% mif2(
     t0     = 1
   , params = c(
@@ -392,19 +303,25 @@ mifs_temp <- try(silent = TRUE, { covid.fitting %>% mif2(
     }
   }
   )
-  , Np     = n.mif_particles
-  , Nmif   = n.mif_length
+  , Np                  = n.mif_particles
+  , Nmif                = n.mif_length
   , cooling.fraction.50 = 0.5
-  , rw.sd  = {
+  , rw.sd               = {
     if (fit_to_sip) {
       if (fit.E0) {
-    rw.sd(beta0 = n.mif_rw.sd, soc_dist_level_sip = n.mif_rw.sd, E_init = n.mif_rw.sd)        
+    rw.sd(
+      beta0              = n.mif_rw.sd
+    , soc_dist_level_sip = n.mif_rw.sd
+    , E_init             = ivp(n.mif_rw.sd))        
       } else {
     rw.sd(beta0 = n.mif_rw.sd, soc_dist_level_sip = n.mif_rw.sd)        
       }
     } else {
       if (fit.E0) {
-    rw.sd(beta0 = n.mif_rw.sd, E_init = n.mif_rw.sd)        
+    rw.sd(
+      beta0  = n.mif_rw.sd
+    , E_init = ivp(n.mif_rw.sd)
+      )        
       } else {
     rw.sd(beta0 = n.mif_rw.sd)        
       }
@@ -412,74 +329,31 @@ mifs_temp <- try(silent = TRUE, { covid.fitting %>% mif2(
   }
 )})
 
-ll <- try(silent = TRUE, {replicate(10, mifs_temp %>% pfilter(Np = n.mif_particles_LL) %>% logLik())})
-ll <- try(silent = TRUE, {logmeanexp(ll, se = TRUE)})
-
-return(list(mifs_temp, ll))
+}
   
 }
 
-})  
+testforerror <- sum(class(mifs_temp) == "try-error")
+
+if (testforerror == 0) {
   
-}
-  
-testforerror <- sum(unlist(lapply(lapply(mifs_local, class), FUN = function (x) x == "try-error")))
+mifs.ll <- try(silent = TRUE, {replicate(10, mifs_temp %>% pfilter(Np = n.mif_particles_LL) %>% logLik())})
+mifs.ll <- try(silent = TRUE, {logmeanexp(mifs.ll, se = TRUE)})
 
-mifs.ll    <- mifs_local[seq(2, (n.mif_runs * 2), by = 2)]
-loglik.est <- numeric(n.mif_runs)
-loglik.se  <- numeric(n.mif_runs)
-
-for (j in seq_along(loglik.est)) {
-loglik.est[j] <- mifs.ll[[j]][1]
-loglik.se[j]  <- mifs.ll[[j]][2]
-}
-
-mifs_local <- mifs_local[seq(1, (n.mif_runs * 2), by = 2)]
-best.fit   <- which(loglik.est == max(loglik.est, na.rm = T))
-
-mifs_local.params <- sapply(mifs_local, FUN = coef, simplify = "array")
+mifs_temp.coef <- coef(mifs_temp)
 
 if (fit_to_sip) {
- variable_params[i, "soc_dist_level_sip"] <- mean(mifs_local.params[which(dimnames(mifs_local.params)[[1]] == "soc_dist_level_sip"), ])
- param_array[i,,"soc_dist_level_sip"]     <- mifs_local.params[which(dimnames(mifs_local.params)[[1]] == "soc_dist_level_sip"), ]
+ variable_params[i, "soc_dist_level_sip"] <- mifs_temp.coef["soc_dist_level_sip"]
 }
 if (fit.E0) {
-variable_params[i, "E_init"] <- mean(mifs_local.params[which(dimnames(mifs_local.params)[[1]] == "E_init"), ])
-param_array[i,,"E_init"]     <- mifs_local.params[which(dimnames(mifs_local.params)[[1]] == "E_init"), ]  
-}
-  
-mif_traces <- sapply(mifs_local, FUN = traces, simplify = "array")
-
-gg.fit <- mif_traces %>%
-  melt() %>%
-  filter(
-    variable == "loglik" | 
-    variable == "beta0" | 
-    variable == "soc_dist_level_sip" |
-    variable == "E_init") %>% 
-  ggplot(aes(x = iteration, y = value, group = Var3, colour = factor(Var3)))+
-  geom_line() +
-  guides(color = FALSE) +
-  facet_wrap(~variable, scales = "free_y") +
-  theme_bw()
-
-## !! Still not using uncertainty in beta which should be corrected soon
-variable_params[i, "beta0est"] <- mean(mifs_local.params[which(dimnames(mifs_local.params)[[1]] == "beta0"), ])
-param_array[i,,"beta0"]        <- mifs_local.params[which(dimnames(mifs_local.params)[[1]] == "beta0"), ] 
-
-loglik.est    <- numeric(length(mifs.ll))
-loglik.se     <- numeric(length(mifs.ll))
-for (k in seq_along(loglik.est)) {
-loglik.est[k] <- mifs.ll[[k]][1]
-loglik.se[k]  <- mifs.ll[[k]][2]
+variable_params[i, "E_init"]              <- mifs_temp.coef["E_init"]
 }
 
-variable_params[i, "log_lik"]     <- mean(loglik.est)
-variable_params[i, "log_lik.se"]  <- mean(loglik.se)
-param_array[i,,"loglik"]          <- loglik.est
-param_array[i,,"loglik.se"]       <- loglik.se
+variable_params[i, "beta0est"]   <- mifs_temp.coef["beta0"]
+variable_params[i, "log_lik"]    <- mifs.ll[1]
+variable_params[i, "log_lik.se"] <- mifs.ll[2]
 
-}
+mif_traces    <- traces(mifs_temp)
 
 SEIR.sim <- do.call(
   pomp::simulate
@@ -489,12 +363,12 @@ SEIR.sim <- do.call(
     , params = {
     if (!more.params.uncer) {
       c(fixed_params, c(
-      beta0 = variable_params[i, "beta0est"]
+      beta0              = variable_params[i, "beta0est"]
     , soc_dist_level_sip = variable_params[i, "soc_dist_level_sip"]
-    , Ca    = variable_params[i, ]$Ca
-    , alpha = variable_params[i, ]$alpha
-    , delta = variable_params[i, ]$delta
-    , mu    = variable_params[i, ]$mu
+    , Ca                 = variable_params[i, ]$Ca
+    , alpha              = variable_params[i, ]$alpha
+    , delta              = variable_params[i, ]$delta
+    , mu                 = variable_params[i, ]$mu
       )
       , if (fit.E0) { 
           c(E_init = variable_params[i, ]$E_init)
@@ -504,13 +378,13 @@ SEIR.sim <- do.call(
         )
       } else {
       c(fixed_params, c(
-      beta0    = variable_params[i, "beta0est"]
+      beta0              = variable_params[i, "beta0est"]
     , soc_dist_level_sip = variable_params[i, "soc_dist_level_sip"]
-      , Ca       = variable_params[i, ]$Ca
-      , alpha    = variable_params[i, ]$alpha
-      , lambda_a = variable_params[i, ]$lambda_a
-      , lambda_s = variable_params[i, ]$lambda_s
-      , lambda_m = variable_params[i, ]$lambda_m 
+      , Ca               = variable_params[i, ]$Ca
+      , alpha            = variable_params[i, ]$alpha
+      , lambda_a         = variable_params[i, ]$lambda_a
+      , lambda_s         = variable_params[i, ]$lambda_s
+      , lambda_m         = variable_params[i, ]$lambda_m 
       )
       , if (fit.E0) { 
           c(E_init = variable_params[i, ]$E_init)
@@ -530,7 +404,6 @@ SEIR.sim <- do.call(
                     mutate(.id = "median"))
     }
 
-mif_traces.all[[i]] <- mif_traces
 
 ## summarize epidemic
 {
@@ -624,33 +497,47 @@ variable_params[i, ]$R0 <- with(variable_params[i, ], covid_R0(
   beta0est = beta0est, fixed_params = c(fixed_params, unlist(variable_params[i, ]))
   , sd_strength = 1, prop_S = 1))
 
-if (((i / 5) %% 1) == 0) {
- saveRDS(
-   list(
-    variable_params  = variable_params
+}
+
+## Clean up the objects to return 
+fixed_params <- melt(fixed_params) %>% mutate(
+  paramset  = variable_params$paramset[i]
+, mif2_iter = variable_params$mif2_iter[i]
+  )
+SEIR.sim.ss.t.ci <- SEIR.sim.ss.t.ci %>%
+  mutate(
+   mif2_iter = variable_params$mif2_iter[i] 
+  )
+mif_traces <- as.data.frame(mif_traces) %>% mutate(
+  paramset  = variable_params$paramset[i]
+, mif2_iter = variable_params$mif2_iter[i]
+  )
+
+return(
+list(
+    variable_params  = variable_params[i, ]
   , fixed_params     = fixed_params
   , dynamics_summary = SEIR.sim.ss.t.ci
-  , param_array      = param_array
-  , mif_traces       = mif_traces.all
-   ), paste(
-     paste("output/"
-       , paste(focal.county, fit_to_sip, more.params.uncer, last_date, Sys.Date(), "temp", sep = "_")
-         , sep = "")
-     , "Rds", sep = "."))
-}
-
-print(checktime)
-print(i)
+  , mif_traces       = mif_traces
+  , covid.fitting    = covid.fitting
+   )
+)
 
 }
+
+variable_params.all  <- sapply(fit.out, FUN = function(x) x[1]) %>% rbindlist()
+fixed_params.all     <- sapply(fit.out, FUN = function(x) x[2]) %>% rbindlist()
+dynamics_summary.all <- sapply(fit.out, FUN = function(x) x[3]) %>% rbindlist()
+mif_traces.all       <- sapply(fit.out, FUN = function(x) x[4]) %>% rbindlist()
+covid.fitting        <- sapply(fit.out, FUN = function(x) x$covid.fitting)
 
 saveRDS(
    list(
-    variable_params  = variable_params
-  , fixed_params     = fixed_params
-  , dynamics_summary = SEIR.sim.ss.t.ci
-  , param_array      = param_array
+    variable_params  = variable_params.all
+  , fixed_params     = fixed_params.all
+  , dynamics_summary = dynamics_summary.all
   , mif_traces       = mif_traces.all
+  , covid.fitting    = covid.fitting
    ), paste(
      paste("output/"
        , paste(focal.county, fit_to_sip, more.params.uncer, last_date, Sys.Date(), "final", sep = "_")
