@@ -4,7 +4,8 @@
 
 set.seed(879897)
 fitting           <- TRUE          ## Small change in pomp objects if fitting or simulating
-last_date         <- "2020-04-22"  ## Last possible date to consider for this model
+last_date         <- args[1]  ## Last possible date to consider for this model
+last_dates        <- as_date(as.numeric(last_date))
 # fit.minus       <- 0        ## Use data until X days prior to the present # no longer in use
 more.params.uncer <- FALSE    ## Fit with more (FALSE) or fewer (TRUE) point estimates for a number of parameters
 fit.E0            <- TRUE     ## Also fit initial # that starts the epidemic?
@@ -19,7 +20,6 @@ n.mif_length      <- 50#300
 n.mif_particles   <- 200#1000
 n.mif_rw.sd       <- 0.02
 n.mif_particles_LL<- 500#5000     ## number of particles for calculating LL (10000 used in manuscript, 5000 suggested to debug/check code)
-
 focal.county      <- "Santa Clara"  ## County to fit to
 ## !!! Curently parameters exist for Santa Clara, Miami-Dade, New York City, King, Los Angeles
 ## !!! But only Santa Clara explored
@@ -45,7 +45,7 @@ needed_packages <- c(
 lapply(needed_packages, require, character.only = TRUE)
 
 ## Be very careful here, adjust according to your machine
-registerDoParallel(cores = usable.cores)
+registerDoParallel(cores = (Sys.getenv("SLURM_NTASKS_PER_NODE")))
 
 ## Bring in pomp objects
 source("COVID_pomp.R")
