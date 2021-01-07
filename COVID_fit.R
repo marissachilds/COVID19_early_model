@@ -505,17 +505,19 @@ variable_params[i, ]$R0 <- with(variable_params[i, ], covid_R0(
 
 ## Clean up the objects to return 
 fixed_params <- melt(fixed_params) %>% mutate(
-  paramset  = variable_params$paramset[i]
-, mif2_iter = variable_params$mif2_iter[i]
-  )
+  param      = names(fixed_params)
+  , paramset  = variable_params$paramset[i]
+  , mif2_iter = variable_params$mif2_iter[i]
+)
 SEIR.sim.ss.t.ci <- SEIR.sim.ss.t.ci %>%
   mutate(
-   mif2_iter = variable_params$mif2_iter[i] 
+    mif2_iter = variable_params$mif2_iter[i] 
   )
 mif_traces <- as.data.frame(mif_traces) %>% mutate(
   paramset  = variable_params$paramset[i]
-, mif2_iter = variable_params$mif2_iter[i]
-  )
+  , mif2_iter = variable_params$mif2_iter[i]
+  , mif_step  = seq(1, nrow(mif_traces))
+)
 
 return(
 list(
