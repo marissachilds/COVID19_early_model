@@ -15,7 +15,7 @@ fit.E0            <- TRUE     ## Also fit initial # that starts the epidemic?
 usable.cores      <- 2        ## Number of cores to use to fit
 fit_to_sip        <- TRUE     ## Fit beta0 and shelter in place simultaneously?
 import_cases      <- FALSE    ## Use importation of cases?
-n.mif_runs        <- 1#6        ## mif2 fitting parameters
+n.mif_runs        <- 2#6        ## mif2 fitting parameters
 n.mif_length      <- 50#300
 n.mif_particles   <- 200#1000
 n.mif_rw.sd       <- 0.02
@@ -25,7 +25,7 @@ focal.county      <- "Santa Clara"  ## County to fit to
 ## !!! But only Santa Clara explored
 # county.N        <- 1.938e6         ## County population size
 ## !!! Now contained within location_params.csv
-nparams           <- 2#100             ## number of parameter sobol samples (more = longer)
+nparams           <- 3#100             ## number of parameter sobol samples (more = longer)
 nsim              <- 200             ## number of simulations for each fitted beta0 for dynamics
 download.new_data <- FALSE           ## Grab up-to-date data from NYT?
 
@@ -45,7 +45,11 @@ needed_packages <- c(
 lapply(needed_packages, require, character.only = TRUE)
 
 ## Be very careful here, adjust according to your machine
-registerDoParallel(cores = (Sys.getenv("SLURM_NTASKS_PER_NODE")))
+if(Sys.getenv('SLURM_JOB_ID') != ""){
+  registerDoParallel(cores = (Sys.getenv("SLURM_NTASKS_PER_NODE")))
+}else{
+  registerDoParallel(cores = usable.cores)  
+}
 
 ## Bring in pomp objects
 source("COVID_pomp.R")
@@ -103,7 +107,7 @@ SEIR.sim.ss.t.ci <- data.frame(
 , upr      = numeric(0)
 , paramset = numeric(0))
 
-fit.out <- foreach(i = 1:nrow(variable_params), .combine = list) %dopar%  {
+fit.out <- foreach(i = 1:nrow(variable_params), .combine = list, .multicombine = TRUE) %dopar%  {
     
 library(pomp)
 library(dplyr)
