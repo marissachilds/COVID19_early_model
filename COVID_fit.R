@@ -4,8 +4,8 @@
 
 set.seed(879897)
 fitting           <- TRUE          ## Small change in pomp objects if fitting or simulating
-last_date         <- args[1]  ## Last possible date to consider for this model
-last_dates        <- as_date(as.numeric(last_date))
+last_date         <- "2020-04-22" #args[1]  ## Last possible date to consider for this model
+# last_dates        <- as_date(as.numeric(last_date))
 # fit.minus       <- 0        ## Use data until X days prior to the present # no longer in use
 more.params.uncer <- FALSE    ## Fit with more (FALSE) or fewer (TRUE) point estimates for a number of parameters
 fit.E0            <- TRUE     ## Also fit initial # that starts the epidemic?
@@ -525,7 +525,9 @@ list(
   , fixed_params     = fixed_params
   , dynamics_summary = SEIR.sim.ss.t.ci
   , mif_traces       = mif_traces
-  , covid.fitting    = covid.fitting
+  # , covid.fitting    = covid.fitting
+  , data_covar       = list(county_data      = county.data
+                            , covar_table      = intervention.forecast)
    )
 )
 
@@ -535,7 +537,7 @@ variable_params.all  <- sapply(fit.out, FUN = function(x) x[1]) %>% rbindlist()
 fixed_params.all     <- sapply(fit.out, FUN = function(x) x[2]) %>% rbindlist()
 dynamics_summary.all <- sapply(fit.out, FUN = function(x) x[3]) %>% rbindlist()
 mif_traces.all       <- sapply(fit.out, FUN = function(x) x[4]) %>% rbindlist()
-covid.fitting        <- sapply(fit.out, FUN = function(x) x$covid.fitting)
+data_covar.all       <- sapply(fit.out, FUN = function(x) x$data_covar, simplify = FALSE)
 
 saveRDS(
    list(
@@ -543,10 +545,20 @@ saveRDS(
   , fixed_params     = fixed_params.all
   , dynamics_summary = dynamics_summary.all
   , mif_traces       = mif_traces.all
-  , covid.fitting    = covid.fitting
+  , data_covar       = data_covar.all
+  , pomp_components  = list(time       = "day"
+                            , t0         = 1
+                            , rprocess   = euler(sir_step, delta.t = 1/6)
+                            , rmeasure   = rmeas_deaths
+                            , dmeasure   = dmeas_deaths 
+                            , rinit      = sir_init
+                            , partrans   = par_trans
+                            , accumvars  = accum_names
+                            , paramnames = param_names
+                            , statenames = state_names)
    ), paste(
      paste("output/"
-       , paste(focal.county, fit_to_sip, more.params.uncer, last_date, Sys.Date(), "final", sep = "_")
+           , paste(focal.county, fit_to_sip, more.params.uncer, last_date, Sys.Date(), "final", sep = "_")
          , sep = "")
      , "Rds", sep = "."))
  
