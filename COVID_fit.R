@@ -30,7 +30,7 @@ fit.E0            <- TRUE     ## Also fit initial # that starts the epidemic?
 usable.cores      <- 2        ## Number of cores to use to fit
 fit_to_sip        <- TRUE     ## Fit beta0 and shelter in place simultaneously?
 import_cases      <- FALSE    ## Use importation of cases?
-n.mif_runs        <- 1#6        ## mif2 fitting parameters
+n.mif_runs        <- 2#6        ## mif2 fitting parameters
 n.mif_length      <- 50#300
 n.mif_particles   <- 200#1000
 n.mif_rw.sd       <- 0.02
@@ -40,12 +40,16 @@ focal.county      <- "Santa Clara"  ## County to fit to
 ## !!! But only Santa Clara explored
 # county.N        <- 1.938e6         ## County population size
 ## !!! Now contained within location_params.csv
-nparams           <- 2#100             ## number of parameter sobol samples (more = longer)
+nparams           <- 3#100             ## number of parameter sobol samples (more = longer)
 nsim              <- 200             ## number of simulations for each fitted beta0 for dynamics
 download.new_data <- FALSE           ## Grab up-to-date data from NYT?
 
 ## Be very careful here, adjust according to your machine
-registerDoParallel(cores = (Sys.getenv("SLURM_NTASKS_PER_NODE")))
+if(Sys.getenv('SLURM_JOB_ID') != ""){
+  registerDoParallel(cores = (Sys.getenv("SLURM_NTASKS_PER_NODE")))
+}else{
+  registerDoParallel(cores = usable.cores)  
+}
 
 ## Bring in pomp objects
 source("COVID_pomp.R")
@@ -103,7 +107,7 @@ SEIR.sim.ss.t.ci <- data.frame(
 , upr      = numeric(0)
 , paramset = numeric(0))
 
-fit.out <- foreach(i = 1:nrow(variable_params), .combine = list, .multicombine = T) %dopar%  {
+fit.out <- foreach(i = 1:nrow(variable_params), .combine = list, .multicombine = TRUE) %dopar%  {
     
 library(pomp)
 library(dplyr)
@@ -507,7 +511,7 @@ fixed_params <- melt(fixed_params) %>% mutate(
   )
 SEIR.sim.ss.t.ci <- SEIR.sim.ss.t.ci %>%
   mutate(
-   mif2_iter = variable_params$mif2_iter[i] 
+    mif2_iter = variable_params$mif2_iter[i] 
   )
 mif_traces <- as.data.frame(mif_traces) %>% mutate(
   paramset  = variable_params$paramset[i]
@@ -515,13 +519,16 @@ mif_traces <- as.data.frame(mif_traces) %>% mutate(
 , mif_step  = seq(1, nrow(mif_traces))
   )
 
+
 return(
 list(
     variable_params  = variable_params[i, ]
   , fixed_params     = fixed_params
   , dynamics_summary = SEIR.sim.ss.t.ci
   , mif_traces       = mif_traces
-  , covid.fitting    = covid.fitting
+  # , covid.fitting    = covid.fitting
+  , data_covar       = list(county_data      = county.data
+                            , covar_table      = intervention.forecast)
    )
 )
 
@@ -531,7 +538,7 @@ variable_params.all  <- sapply(fit.out, FUN = function(x) x[1]) %>% rbindlist()
 fixed_params.all     <- sapply(fit.out, FUN = function(x) x[2]) %>% rbindlist()
 dynamics_summary.all <- sapply(fit.out, FUN = function(x) x[3]) %>% rbindlist()
 mif_traces.all       <- sapply(fit.out, FUN = function(x) x[4]) %>% rbindlist()
-covid.fitting        <- sapply(fit.out, FUN = function(x) x$covid.fitting)
+data_covar.all       <- sapply(fit.out, FUN = function(x) x$data_covar, simplify = FALSE)
 
 saveRDS(
    list(
@@ -539,10 +546,20 @@ saveRDS(
   , fixed_params     = fixed_params.all
   , dynamics_summary = dynamics_summary.all
   , mif_traces       = mif_traces.all
-  , covid.fitting    = covid.fitting
+  , data_covar       = data_covar.all
+  , pomp_components  = list(time       = "day"
+                            , t0         = 1
+                            , rprocess   = euler(sir_step, delta.t = 1/6)
+                            , rmeasure   = rmeas_deaths
+                            , dmeasure   = dmeas_deaths 
+                            , rinit      = sir_init
+                            , partrans   = par_trans
+                            , accumvars  = accum_names
+                            , paramnames = param_names
+                            , statenames = state_names)
    ), paste(
      paste("output/"
-       , paste(focal.county, fit_to_sip, more.params.uncer, last_date, Sys.Date(), "final", sep = "_")
+           , paste(focal.county, fit_to_sip, more.params.uncer, last_date, Sys.Date(), "final", sep = "_")
          , sep = "")
      , "Rds", sep = "."))
  
