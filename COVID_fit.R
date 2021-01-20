@@ -2,10 +2,25 @@
 ## Fit COVID epidemic with pomp ##
 ##################################
 
+needed_packages <- c(
+    "pomp"
+  , "plyr"
+  , "dplyr"
+  , "ggplot2"
+  , "magrittr"
+  , "scales"
+  , "lubridate"
+  , "tidyr"
+  , "foreach"
+  , "doParallel"
+  , "data.table")
+
+lapply(needed_packages, require, character.only = TRUE)
+
 set.seed(879897)
-fitting           <- TRUE          ## Small change in pomp objects if fitting or simulating
+fitting           <- TRUE     ## Small change in pomp objects if fitting or simulating
 last_date         <- args[1]  ## Last possible date to consider for this model
-last_dates        <- as_date(as.numeric(last_date))
+last_date         <- as_date(as.numeric(last_date))
 # fit.minus       <- 0        ## Use data until X days prior to the present # no longer in use
 more.params.uncer <- FALSE    ## Fit with more (FALSE) or fewer (TRUE) point estimates for a number of parameters
 fit.E0            <- TRUE     ## Also fit initial # that starts the epidemic?
@@ -28,21 +43,6 @@ focal.county      <- "Santa Clara"  ## County to fit to
 nparams           <- 2#100             ## number of parameter sobol samples (more = longer)
 nsim              <- 200             ## number of simulations for each fitted beta0 for dynamics
 download.new_data <- FALSE           ## Grab up-to-date data from NYT?
-
-needed_packages <- c(
-    "pomp"
-  , "plyr"
-  , "dplyr"
-  , "ggplot2"
-  , "magrittr"
-  , "scales"
-  , "lubridate"
-  , "tidyr"
-  , "foreach"
-  , "doParallel"
-  , "data.table")
-
-lapply(needed_packages, require, character.only = TRUE)
 
 ## Be very careful here, adjust according to your machine
 registerDoParallel(cores = (Sys.getenv("SLURM_NTASKS_PER_NODE")))
@@ -103,7 +103,7 @@ SEIR.sim.ss.t.ci <- data.frame(
 , upr      = numeric(0)
 , paramset = numeric(0))
 
-fit.out <- foreach(i = 1:nrow(variable_params), .combine = list) %dopar%  {
+fit.out <- foreach(i = 1:nrow(variable_params), .combine = list, .multicombine = T) %dopar%  {
     
 library(pomp)
 library(dplyr)
@@ -501,7 +501,8 @@ variable_params[i, ]$R0 <- with(variable_params[i, ], covid_R0(
 
 ## Clean up the objects to return 
 fixed_params <- melt(fixed_params) %>% mutate(
-  paramset  = variable_params$paramset[i]
+  param     = names(fixed_params)
+, paramset  = variable_params$paramset[i]
 , mif2_iter = variable_params$mif2_iter[i]
   )
 SEIR.sim.ss.t.ci <- SEIR.sim.ss.t.ci %>%
@@ -511,6 +512,7 @@ SEIR.sim.ss.t.ci <- SEIR.sim.ss.t.ci %>%
 mif_traces <- as.data.frame(mif_traces) %>% mutate(
   paramset  = variable_params$paramset[i]
 , mif2_iter = variable_params$mif2_iter[i]
+, mif_step  = seq(1, nrow(mif_traces))
   )
 
 return(
