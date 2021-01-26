@@ -6,8 +6,10 @@
  ## Thus, packages are set to be loaded etc. (these lines do not need to be run if COVID_fit.R was just run)
 
 # the script can either simulate forward from the end of the data using the 
-# filtering trajectories, in which case (currnetly) no interventions can be 
-# applied, or simulate forward from t0 in which case multiple intervention scenarios are possible 
+# filtering trajectories or simulate forward from t0 
+
+# the parameters that must be set for simulation are in the COVID_simulate_params.R file
+
 
 ## Required packages to run this code
 needed_packages <- c(
