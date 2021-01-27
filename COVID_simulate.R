@@ -10,6 +10,7 @@
 
 # the parameters that must be set for simulation are in the COVID_simulate_params.R file
 
+set.seed(seed.val)
 
 ## Required packages to run this code
 needed_packages <- c(
@@ -70,7 +71,6 @@ if (!params.all) {
 ####
 
 for (i in 1:nrow(variable_params)) {
-  print(i)
   ## define the parameters 
   full_params = c(fixed_params %>% 
                     filter(paramset == variable_params[[i, "paramset"]] & 
@@ -216,7 +216,7 @@ for (i in 1:nrow(variable_params)) {
                   covar = intervention.forecast)
              ))
   
-  # for each filtering trajecory, simulate forward 
+  # simulate, either forward from the filtering trajectory, or from t0
   if(filtering.traj){
     SEIR.sim <- adply(.data = 1:dim(trajs)[4], 
                       .margins = 1, 
@@ -225,6 +225,7 @@ for (i in 1:nrow(variable_params)) {
                         names(init_params) = paste0(names(init_params), "_0")
                         simulate(covid_simulate,
                                  nsim = nsim,
+                                 seed = seed.val, 
                                  t0 = last(covid_fitting@times),
                                  times = last(covid_fitting@times) + 1:sim_length,
                                  format = "data.frame",
@@ -242,7 +243,8 @@ for (i in 1:nrow(variable_params)) {
   } else{
     SEIR.sim <- simulate(covid_simulate,
                          nsim = nsim,
-                         time = intervention.forecast@times,
+                         seed = seed.val, 
+                         times = intervention.forecast@times,
                          format = "data.frame",
                          params = full_params)
   }
@@ -264,8 +266,5 @@ if (i == 1) {
 if (((i / 20) %% 1) == 0) {
   print(paste(round(i / nrow(variable_params), 2)*100, "% Complete", sep = ""))
 }
-
 }
-
-
 

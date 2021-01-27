@@ -2,14 +2,14 @@
 ####
 ## Parameters
 ####
-set.seed(10001)
+seed.val               <- 10001
 focal.county       <- "Santa Clara"
 fitting            <- FALSE   ## Small change in pomp objects if fitting or simulating
 ## TRUE if COVID_fit previously run, FALSE if COVID_fit was just run and global environment is still full
 use.rds            <- TRUE    
 rds.name           <- "output/Santa Clara_TRUE_FALSE_2020-04-22_2021-01-08_final.Rds"
-more.params.uncer  <- FALSE   ## Fit with more (FALSE) or fewer (TRUE) point estimates for a number of parameters
-uncer.within.set   <- TRUE    ## Use parameter estimates from all mif2 runs for all parameter sets
+# more.params.uncer  <- FALSE   ## Fit with more (FALSE) or fewer (TRUE) point estimates for a number of parameters
+# uncer.within.set   <- TRUE    ## Use parameter estimates from all mif2 runs for all parameter sets
 nsim               <- 10      ## Number of epidemic simulations for each parameter set
 fit.E0             <- TRUE    ## Was E0 also fit?
 
@@ -35,4 +35,4 @@ state.plot         <- "D"     ## State variable for plotting (Hospit [H], Death 
 loglik.thresh      <- 10       ## Keep parameter sets with a likelihood within top X loglik units, to only fit with MLE, use 0
 params.all         <- TRUE     ## Keep all fitted parameters above loglik thresh?...
 nparams            <- 200      ## ...if FALSE, pick the top X by loglik to use
-plot.log10         <- FALSE    ## Plot on a log10 scale or not
+# plot.log10         <- FALSE    ## Plot on a log10 scale or not
