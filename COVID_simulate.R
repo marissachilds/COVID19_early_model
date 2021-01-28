@@ -160,7 +160,7 @@ for (i in 1:nrow(variable_params)) {
             if (!inf_iso & !light) {
               rep(0, sim_length - (int_start2 - sim_start) - int_length2)
             } else if (inf_iso & !light) {
-              rep(2, sim_length - (int_start2 - sim_start) - int_length2)  
+              rep(1, sim_length - (int_start2 - sim_start) - int_length2)  
             } else if (!inf_iso & light) {
               rep(3, sim_length - (int_start2 - sim_start) - int_length2)        
             }
@@ -185,17 +185,6 @@ for (i in 1:nrow(variable_params)) {
             )
           }
         }
-        # , soc_dist_level_wfh = rep(soc_dist_level_wfh, sim_length) 
-        # , soc_dist_level_sip = {
-        #   if (!inf_iso) {
-        #     rep(soc_dist_level_sip, sim_length) 
-        #   } else {
-        #     c(
-        #       rep(soc_dist_level_sip, (int_start1 - sim_start) + int_length1 + int_length2)
-        #       , rep(soc_dist_level_red, sim_length - ((int_start1 - sim_start) + int_length1 + int_length2))
-        #     )
-        #   }
-        # }
         , thresh_H_start   = rep(thresh_H.start, sim_length) 
         , thresh_H_end     = rep(thresh_H.end, sim_length)
         , order            = "constant"
@@ -221,7 +210,7 @@ for (i in 1:nrow(variable_params)) {
     SEIR.sim <- adply(.data = 1:dim(trajs)[4], 
                       .margins = 1, 
                       .fun = function(j){
-                        init_params = trajs[,1,last(covid_fitting@times), j]
+                        init_params = trajs[,1,length(covid_fitting@times), j]
                         names(init_params) = paste0(names(init_params), "_0")
                         simulate(covid_simulate,
                                  nsim = nsim,
@@ -231,9 +220,9 @@ for (i in 1:nrow(variable_params)) {
                                  format = "data.frame",
                                  params = c(full_params, init_params)) %>% 
                           # add on the filtering trajectories too
-                          rbind(trajs[,1,, j] %>% t %>% 
+                          rbind(trajs[,1,,j] %>% t %>% 
                                   as.data.frame() %>% 
-                                  cbind(day = covid_fitting@t0:last(covid_fitting@times), 
+                                  cbind(day = unique(c(covid_fitting@t0, first(covid_fitting@times):last(covid_fitting@times))), 
                                         .id = "traj", 
                                         deaths = NA, date = NA)) %>% 
                           return
