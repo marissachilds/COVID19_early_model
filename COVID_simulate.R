@@ -9,6 +9,15 @@
 # filtering trajectories or simulate forward from t0 
 
 # the parameters that must be set for simulation are in the COVID_simulate_params.R file
+if(sys.nframe() == 0L){
+  rds.name = "output/Santa Clara_TRUE_FALSE_2020-06-24_2021-01-26_final.Rds"
+  traj.file = "output/Santa Clara_TRUE_FALSE_2020-06-24_2021-01-26_final_filter_traj.Rds"
+  seed.val = 100001
+  use.rds = TRUE
+  filtering.traj = TRUE
+}
+
+
 
 set.seed(seed.val)
 
@@ -28,20 +37,22 @@ needed_packages <- c(
 ## load packages. Install all packages that return "FALSE"
 lapply(needed_packages, require, character.only = TRUE)
 
-## Theme for pretty plots
-# source("ggplot_theme.R")
 
 ## Load the previously saved fits
  ## If COVID_fit.R was just run, use parameers already stored in the global env 
 if (use.rds) {
 prev.fit           <- readRDS(rds.name)
 variable_params    <- prev.fit[["variable_params"]] %>% 
-  mutate(rowid = 1:n()) # add a row id to be able to match up with the data and covariate tables stored in data_covar
+  mutate(rowid = 1:n()) # add a row id to be able to match up with the data and covariate tables stored in data_covar and the trajectories if they get read in
 fixed_params       <- prev.fit[["fixed_params"]]
 dynamics_summary   <- prev.fit[["dynamics_summary"]]
 mif_traces         <- prev.fit[["mif_traces"]] 
 data_covar         <- prev.fit[["data_covar"]]
 pomp_components    <- prev.fit[["pomp_components"]]
+}
+
+if(filtering.traj){
+  trajs <- readRDS(traj.file)
 }
 
 ## drop the rows that have 0s for likelihood (in case exited prematurely) 
@@ -82,24 +93,20 @@ for (i in 1:nrow(variable_params)) {
   
   if(filtering.traj){
     # if using filtering trajectories, set up covid fitting object to pfilter
-    covid_fitting <- do.call(pomp, 
-                             args = c(pomp_components, 
-                                      list(data = data_covar[[variable_params[i,]$rowid]]$county_data, 
-                                           covar = data_covar[[variable_params[i,]$rowid]]$covar_table)))
+    # covid_fitting <- do.call(pomp, 
+    #                          args = c(pomp_components, 
+    #                                   list(data = data_covar[[variable_params[i,]$rowid]]$county_data, 
+    #                                        covar = data_covar[[variable_params[i,]$rowid]]$covar_table)))
+    # 
     
-    
-    # pfilter to get filtering trajectories  
-    trajs <- replicate(n.filter.traj, 
-                       filter.traj(pfilter(covid_fitting, 
-                                           params = full_params,
-                                           filter.traj = TRUE, Np = n.particles))) 
-    
+    current_traj <- trajs[[variable_params[i,]$rowid]]
+    traj_times <- as.numeric(dimnames(current_traj)[[2]])
     # set up an intervention table for simulating after the data end, using the previous one up until the data ends
     intervention.forecast = data_covar[[variable_params[i,]$rowid]]$covar_table
     # intervention table that will get added onto the previous one at the point where the data end
     intervention.forecast_cont <- with(variable_params[i,], {
       int_length2 = min(sim_length, int_length2) # limit the SIP intervention to the length of the simulation
-      covariate_table(day = last(covid_fitting@times) + 1:sim_length
+      covariate_table(day = last(traj_times) + 1:sim_length
                       ,intervention = c(
                         # continut SIP for red_shelt.t days
                         rep(2, int_length2)
@@ -138,7 +145,7 @@ for (i in 1:nrow(variable_params)) {
     # force new intervention table rowname order to match those of the existing intervention table
     intervention.forecast_cont@table <- intervention.forecast_cont@table[match(rownames(intervention.forecast@table), rownames(intervention.forecast_cont@table)), ]
     # replace the end of the old intervention table with this new one 
-    cut_point = which(intervention.forecast@times == last(covid_fitting@times))
+    cut_point = which(intervention.forecast@times == last(traj_times))
     intervention.forecast@times <- c(intervention.forecast@times[1:cut_point], intervention.forecast_cont@times)
     intervention.forecast@table <- cbind(intervention.forecast@table[,1:cut_point], intervention.forecast_cont@table)
     
@@ -207,22 +214,22 @@ for (i in 1:nrow(variable_params)) {
   
   # simulate, either forward from the filtering trajectory, or from t0
   if(filtering.traj){
-    SEIR.sim <- adply(.data = 1:dim(trajs)[4], 
+    SEIR.sim <- adply(.data = 1:dim(current_traj)[3], 
                       .margins = 1, 
                       .fun = function(j){
-                        init_params = trajs[,1,length(covid_fitting@times), j]
+                        init_params = current_traj[,length(traj_times), j]
                         names(init_params) = paste0(names(init_params), "_0")
                         simulate(covid_simulate,
                                  nsim = nsim,
                                  seed = seed.val, 
-                                 t0 = last(covid_fitting@times),
-                                 times = last(covid_fitting@times) + 1:sim_length,
+                                 t0 = last(traj_times),
+                                 times = last(traj_times) + 1:sim_length,
                                  format = "data.frame",
                                  params = c(full_params, init_params)) %>% 
                           # add on the filtering trajectories too
-                          rbind(trajs[,1,,j] %>% t %>% 
+                          rbind(current_traj[,,j] %>% t %>% 
                                   as.data.frame() %>% 
-                                  cbind(day = unique(c(covid_fitting@t0, first(covid_fitting@times):last(covid_fitting@times))), 
+                                  cbind(day = traj_times,
                                         .id = "traj", 
                                         deaths = NA, date = NA)) %>% 
                           return
