@@ -19,29 +19,30 @@ lapply(needed_packages, require, character.only = TRUE)
 
 set.seed(879897)
 fitting           <- TRUE     ## Small change in pomp objects if fitting or simulating
-last_date         <- args[1]  ## Last possible date to consider for this model
-last_date         <- as_date(as.numeric(last_date))
+# last_date         <- args[1]  ## Last possible date to consider for this model
+# last_date         <- as_date(as.numeric(last_date))
+last_date         <- "2020-06-24"
 # fit.minus       <- 0        ## Use data until X days prior to the present # no longer in use
 more.params.uncer <- FALSE    ## Fit with more (FALSE) or fewer (TRUE) point estimates for a number of parameters
 fit.E0            <- TRUE     ## Also fit initial # that starts the epidemic?
 ## more.params.uncer = FALSE is more supported, uses parameter ranges with more research and reacts to choice of focal.county if possible
 ## !!!!! For FALSE update parameters in location_params.csv
 ## more.params.uncer = TRUE  is less suppored, raw parameter values that can be adjusted manually
-usable.cores      <- 2        ## Number of cores to use to fit
+usable.cores      <- 2#2        ## Number of cores to use to fit
 fit_to_sip        <- TRUE     ## Fit beta0 and shelter in place simultaneously?
 import_cases      <- FALSE    ## Use importation of cases?
-n.mif_runs        <- 2#6        ## mif2 fitting parameters
-n.mif_length      <- 50#300
-n.mif_particles   <- 200#1000
+n.mif_runs        <- 2#2#6        ## mif2 fitting parameters
+n.mif_length      <- 50#200#300
+n.mif_particles   <- 50#200#1000
 n.mif_rw.sd       <- 0.02
-n.mif_particles_LL<- 500#5000     ## number of particles for calculating LL (10000 used in manuscript, 5000 suggested to debug/check code)
+n.mif_particles_LL<- 50#500#5000     ## number of particles for calculating LL (10000 used in manuscript, 5000 suggested to debug/check code)
 focal.county      <- "Santa Clara"  ## County to fit to
 ## !!! Curently parameters exist for Santa Clara, Miami-Dade, New York City, King, Los Angeles
 ## !!! But only Santa Clara explored
 # county.N        <- 1.938e6         ## County population size
 ## !!! Now contained within location_params.csv
-nparams           <- 3#100             ## number of parameter sobol samples (more = longer)
-nsim              <- 200             ## number of simulations for each fitted beta0 for dynamics
+nparams           <- 50#2#100        ## number of parameter sobol samples (more = longer)
+nsim              <- 50             ## number of simulations for each fitted beta0 for dynamics
 download.new_data <- FALSE           ## Grab up-to-date data from NYT?
 
 ## Be very careful here, adjust according to your machine
@@ -347,10 +348,10 @@ mifs.ll <- try(silent = TRUE, {logmeanexp(mifs.ll, se = TRUE)})
 mifs_temp.coef <- coef(mifs_temp)
 
 if (fit_to_sip) {
- variable_params[i, "soc_dist_level_sip"] <- mifs_temp.coef["soc_dist_level_sip"]
+ variable_params[i, "soc_dist_level_sip"]  <- mifs_temp.coef["soc_dist_level_sip"]
 }
 if (fit.E0) {
-variable_params[i, "E_init"]              <- mifs_temp.coef["E_init"]
+ variable_params[i, "E_init"]              <- mifs_temp.coef["E_init"]
 }
 
 variable_params[i, "beta0est"]   <- mifs_temp.coef["beta0"]
@@ -519,6 +520,7 @@ mif_traces <- as.data.frame(mif_traces) %>% mutate(
 , mif_step  = seq(1, nrow(mif_traces))
   )
 
+print(i)
 
 return(
 list(
@@ -526,8 +528,8 @@ list(
   , fixed_params     = fixed_params
   , dynamics_summary = SEIR.sim.ss.t.ci
   , mif_traces       = mif_traces
-  # , covid.fitting    = covid.fitting
-  , data_covar       = list(county_data      = county.data
+# , covid.fitting    = covid.fitting
+  , data_covar       = list(county_data        = county.data
                             , covar_table      = intervention.forecast)
    )
 )

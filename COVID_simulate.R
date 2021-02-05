@@ -13,7 +13,8 @@ focal.county       <- "Santa Clara"
 fitting            <- FALSE   ## Small change in pomp objects if fitting or simulating
 ## TRUE if COVID_fit previously run, FALSE if COVID_fit was just run and global environment is still full
 use.rds            <- TRUE    
-rds.name           <- "output/Santa Clara_TRUE_FALSE_0_2020-12-21_final.Rds"
+rds.name           <- "output/Santa Clara_TRUE_FALSE_2020-04-01_2020-12-22_Final.Rds"
+last_date          <- "2020-04-01"  ## Last possible date to consider for this model
 more.params.uncer  <- FALSE   ## Fit with more (FALSE) or fewer (TRUE) point estimates for a number of parameters
 uncer.within.set   <- TRUE    ## Use parameter estimates from all mif2 runs for all parameter sets
 nsim               <- 200     ## Number of epidemic simulations for each parameter set
@@ -89,6 +90,7 @@ prev.fit         <- readRDS(rds.name)
 variable_params  <- prev.fit[["variable_params"]]
 fixed_params     <- prev.fit[["fixed_params"]]
 param_array      <- prev.fit[["param_array"]]
+mif_traces       <- prev.fit[["mif_traces"]]
 }
 
 ## duplicate variable_params for all mif2 runs to incorporate uncertainty in parameter estimates 
