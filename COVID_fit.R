@@ -4,7 +4,7 @@
 
 set.seed(879897)
 fitting           <- TRUE          ## Small change in pomp objects if fitting or simulating
-last_date         <- "2020-04-22" #args[1]  ## Last possible date to consider for this model
+last_date         <- as.Date(args[1])  ## Last possible date to consider for this model
 # last_dates        <- as_date(as.numeric(last_date))
 # fit.minus       <- 0        ## Use data until X days prior to the present # no longer in use
 more.params.uncer <- FALSE    ## Fit with more (FALSE) or fewer (TRUE) point estimates for a number of parameters
@@ -25,7 +25,7 @@ focal.county      <- "Santa Clara"  ## County to fit to
 ## !!! But only Santa Clara explored
 # county.N        <- 1.938e6         ## County population size
 ## !!! Now contained within location_params.csv
-nparams           <- 3#100             ## number of parameter sobol samples (more = longer)
+nparams           <- 3#200             ## number of parameter sobol samples (more = longer)
 nsim              <- 200             ## number of simulations for each fitted beta0 for dynamics
 download.new_data <- FALSE           ## Grab up-to-date data from NYT?
 
@@ -226,7 +226,7 @@ mifs_temp <- try(silent = TRUE, { covid.fitting %>%
       if (fit.E0) {
     c(beta0              = rlnorm(1, log(0.7), 0.17)
     , soc_dist_level_sip = rlnorm(1, log(0.2), 0.2)
-    , E_init             = 2)
+    , E_init             = runif(1, 0, 5))
       } else {
     c(beta0              = rlnorm(1, log(0.7), 0.17)
     , soc_dist_level_sip = rlnorm(1, log(0.2), 0.2)
@@ -235,7 +235,7 @@ mifs_temp <- try(silent = TRUE, { covid.fitting %>%
     } else {
       if (fit.E0) {
     c(beta0              = rlnorm(1, log(0.7), 0.17)
-    , E_init             = 2)
+      , E_init             = runif(1, 0, 5))
       } else {
     c(beta0              = rlnorm(1, log(0.7), 0.17)
     , E0                 = variable_params[i, ]$E0)        
@@ -290,7 +290,7 @@ mifs_temp <- try(silent = TRUE, { covid.fitting %>% mif2(
       if (fit.E0) {
     c(beta0              = rlnorm(1, log(0.7), 0.17)
     , soc_dist_level_sip = rlnorm(1, log(0.2), 0.2)
-    , E_init             = rpois(1, 2))
+    , E_init             = runif(1, 0, 5))
       } else {
     c(beta0              = rlnorm(1, log(0.7), 0.17)
     , soc_dist_level_sip = rlnorm(1, log(0.2), 0.2)
@@ -299,7 +299,7 @@ mifs_temp <- try(silent = TRUE, { covid.fitting %>% mif2(
     } else {
       if (fit.E0) {
     c(beta0              = rlnorm(1, log(0.7), 0.17)
-    , E_init             = rpois(1, 2))
+      , E_init             = runif(1, 0, 5))
       } else {
     c(beta0              = rlnorm(1, log(0.7), 0.17)
     , E0                 = variable_params[i, ]$E0)        
@@ -525,7 +525,6 @@ list(
   , fixed_params     = fixed_params
   , dynamics_summary = SEIR.sim.ss.t.ci
   , mif_traces       = mif_traces
-  # , covid.fitting    = covid.fitting
   , data_covar       = list(county_data      = county.data
                             , covar_table      = intervention.forecast)
    )
@@ -558,7 +557,7 @@ saveRDS(
                             , statenames = state_names)
    ), paste(
      paste("output/"
-           , paste(focal.county, fit_to_sip, more.params.uncer, last_date, Sys.Date(), "final", sep = "_")
+           , paste(gsub(" ", "_", focal.county), fit_to_sip, more.params.uncer, last_date, Sys.Date(), "final", sep = "_")
          , sep = "")
      , "Rds", sep = "."))
  
