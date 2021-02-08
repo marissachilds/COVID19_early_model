@@ -1,28 +1,31 @@
 # Script to draw from the smoothing distribution from existing .Rds files with model fits
 # Output is saved filtering trajectories
-
-# required parameters, only set them if the file isn't being sourced
-if(sys.nframe() == 0L){
-  n.particles = 1000
-  n.filter.traj = 10
-  rds.name = "output/Santa Clara_TRUE_FALSE_2020-04-01_2021-01-26_final.Rds"
-  seed.val = 100001
-}
-
 needed_packages <- c(
   "pomp"
   , "plyr"
   , "dplyr"
-  , "ggplot2"
   , "magrittr"
-  , "scales"
-  , "lubridate"
   , "tidyr"
+  , "foreach"
   , "data.table"
-)
+  , "tibble"
+  , "doParallel")
 
-## load packages. Install all packages that return "FALSE"
 lapply(needed_packages, require, character.only = TRUE)
+
+args<-commandArgs(TRUE)
+
+n.particles <- 5000
+n.filter.traj <- 100
+rds.name <- paste0("output/", args[1])
+usable.cores <- 1
+print(rds.name)
+
+if(Sys.getenv('SLURM_JOB_ID') != ""){
+  registerDoParallel(cores = (Sys.getenv("SLURM_NTASKS_PER_NODE")))
+}else{
+  registerDoParallel(cores = usable.cores)  
+}
 
 # Load the saved fit 
 prev.fit           <- readRDS(rds.name)
@@ -34,15 +37,17 @@ mif_traces         <- prev.fit[["mif_traces"]]
 data_covar         <- prev.fit[["data_covar"]]
 pomp_components    <- prev.fit[["pomp_components"]]
 
-set.seed(seed.val)
-# loop over the rows of variable params
-traj.all <- foreach(i = 1:nrow(variable_params), .combine = list, .multicombine = TRUE) %dopar%  {
+set.seed(100001)
 
+# loop over the rows of variable params
+traj.all <- foreach(
+  i = 1:nrow(variable_params)) %dopar%  {
+    tic <- Sys.time()                  
     # combined the fixed params and variable params into a vector
-  full_params = c(fixed_params %>% 
+    full_params = c(fixed_params %>% 
                     filter(paramset == variable_params[[i, "paramset"]] & 
                              mif2_iter == variable_params[[i, "mif2_iter"]]) %>% 
-                    select(param, value) %>% tibble::deframe(), 
+                      select(param, value) %>% tibble::deframe(),
                   variable_params[i,] %>% rename(beta0 = beta0est) %>% 
                     select(beta0, Ca, alpha, mu, delta, 
                            E_init, soc_dist_level_sip) %>% unlist)
@@ -57,10 +62,14 @@ traj.all <- foreach(i = 1:nrow(variable_params), .combine = list, .multicombine 
                      filter.traj(pfilter(covid_fitting, 
                                          params = full_params,
                                          filter.traj = TRUE, Np = n.particles))) 
+  toc <- Sys.time() 
+  print(toc - tic)
   # returns array with dimensions number of states X 1 X time step (always includes 1 and then all of the covid_fitting@times) X n.filter.traj
   # for now, lets just combine them into a list, after dropping the 2nd dimension
   return(trajs[,1,,])
 }
+
+
 
 # save the filtering trajectories as the rds file name with _filter_traj appended to it
 saveRDS(object = traj.all,
