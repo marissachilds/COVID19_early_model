@@ -10,9 +10,9 @@
 
 # the parameters that must be set for simulation are in the COVID_simulate_params.R file
 if(sys.nframe() == 0L){
-  rds.name = "old_output/Santa Clara_TRUE_FALSE_2020-06-24_2021-01-26_final.Rds"
-  traj.file = "old_output/Santa Clara_TRUE_FALSE_2020-06-24_2021-01-26_final_filter_traj.Rds"
-  traj.trim_date = as.Date("2020-03-17") # use NA to not trim the trajectories to a date
+  rds.name = "output/Santa_Clara_TRUE_FALSE_2020-04-01_2021-02-08_final.Rds"
+  traj.file = "output/Santa_Clara_TRUE_FALSE_2020-04-01_2021-02-08_final_filter_traj.Rds"
+  traj.trim_date = NA # as.Date("2020-03-17") # use NA to not trim the trajectories to a date
   seed.val = 100001
   use.rds = TRUE
   filtering.traj = TRUE

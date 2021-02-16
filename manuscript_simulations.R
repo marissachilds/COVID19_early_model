@@ -1,13 +1,13 @@
-fits_trajs <- list(list(rds.name = "output/Santa Clara_TRUE_FALSE_2020-04-01_2021-01-26_final.Rds", 
-                        traj.file = "output/Santa Clara_TRUE_FALSE_2020-04-01_2021-01-26_final_filter_traj.Rds"),
-                   list(rds.name = "output/Santa Clara_TRUE_FALSE_2020-06-24_2021-01-26_final.Rds",
-                        traj.file = "output/Santa Clara_TRUE_FALSE_2020-06-24_2021-01-26_final_filter_traj.Rds"))
+fits_trajs <- list(list(rds.name = "output/Santa_Clara_TRUE_FALSE_2020-04-01_2021-02-08_final.Rds",
+                        traj.file = "output/Santa_Clara_TRUE_FALSE_2020-04-01_2021-02-08_final_filter_traj.Rds"),
+                   list(rds.name = "output/Santa_Clara_TRUE_FALSE_2020-04-08_2021-02-05_final.Rds",
+                        traj.file = "output/Santa_Clara_TRUE_FALSE_2020-04-08_2021-02-05_final_filter_traj.Rds"))
 
 sim_params <- list(
   seed.val = 10001 
   , use.rds  = TRUE    
   , fit.E0   = TRUE    ## Was E0 also fit?
-  , nsim           = 10     ## Number of epidemic simulations for each filtering trajectory
+  , nsim           = 1     ## Number of epidemic simulations for each filtering trajectory
   , loglik.thresh  = 2       ## Keep parameter sets with a likelihood within top X loglik units, to only fit with MLE, use 0
   , params.all = TRUE     ## Keep all fitted parameters above loglik thresh?...
 )
@@ -15,11 +15,12 @@ sim_params <- list(
 # model assessment ----
 model_assess_params <- 
   list(
-     filtering.traj = TRUE    ## simulate only from trajectories drawn from smoothing distribution
-     , sim_end_date   = as.Date("2020-09-01")
+     filtering.traj   = TRUE    ## simulate only from trajectories drawn from smoothing distribution
+     , traj.trim_date = NA
+     , sim_end_date   = as.Date("2020-05-01")
      , red_shelt.t    = 500   
-     , inf_iso  = FALSE   ## Do we ever reduce from shelter in place to some form of strong/moderate social distancing?
-     , light    = FALSE   ## Lightswitch method
+     , inf_iso        = FALSE   ## Do we ever reduce from shelter in place to some form of strong/moderate social distancing?
+     , light          = FALSE   ## Lightswitch method
 ) 
 
 model_asses_sims <- adply(fits_trajs, 1, function(file_names){
@@ -27,7 +28,7 @@ model_asses_sims <- adply(fits_trajs, 1, function(file_names){
   with(c(model_assess_params, sim_params, file_names), {
     print(rds.name)
     # from rds name, identify the date of the last data used in it
-    last_data_date <- strsplit(rds.name, split = "_")[[1]][4] %>% as.Date()
+    last_data_date <- strsplit(rds.name, split = "_")[[1]][5] %>% as.Date()
     sim_length <- difftime(sim_end_date, last_data_date, units = "days") %>% as.numeric()
     source("./COVID_simulate.R", local = T)
     SEIR.sim.all %>%
