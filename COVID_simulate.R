@@ -20,7 +20,7 @@
 
 
 COVID_simulate <- function(rds.name, 
-                           nsim = 10, ## Number of epidemic simulations for each parameter set or filtering traj
+                           nsim = 1, ## Number of epidemic simulations for each parameter set or filtering traj
                            traj.file = NULL, # NULL results in not using filtering trajectories
                            ntraj = NA, # if not NA, number of filtering trajectories to use
                            sim_length = 28,      ## if using trajectories, how many additional days from the end of the data to run the simulation, if not using trajectories, how long total the simulation will be

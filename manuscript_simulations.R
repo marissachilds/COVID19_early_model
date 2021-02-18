@@ -13,6 +13,8 @@ needed_packages <- c(
 ## load packages. Install all packages that return "FALSE"
 lapply(needed_packages, library, character.only = TRUE)
 
+source("COVID_simulate.R")
+
 # all fit names, trajectories names, and the associated fit dates
 all_fits_trajs = data.frame(
   fit_name = c("output/Santa_Clara_TRUE_FALSE_2020-04-01_2021-02-08_final.Rds",
