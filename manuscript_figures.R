@@ -94,12 +94,12 @@ figure1 <- variable_params_all %>% select(fit_date, R0, Reff, log_lik) %>%
   facet_grid(plot_panel ~ ., scales  = "free_y", 
              switch = "y", as.table = FALSE)  +
   geom_point(data = epi_df %>% 
-               filter(date > as.Date("2020-03-01") & date < as.Date("2020-06-24")) %>% 
+               filter(date > as.Date("2020-03-01") & date <= as.Date("2020-06-24")) %>% 
                select(date, cases, deaths) %>% pivot_longer(!date) %>% 
                mutate(plot_panel = stringr::str_to_title(name)),
              aes(x = date, y = value), color = "grey50") +
   geom_line(data = epi_df %>% 
-              filter(date > as.Date("2020-03-01") & date < as.Date("2020-06-24")) %>% 
+              filter(date > as.Date("2020-03-01") & date <= as.Date("2020-06-24")) %>% 
               select(date, cases, deaths) %>% pivot_longer(!date) %>% 
               mutate(plot_panel = stringr::str_to_title(name)),
             aes(x = date, y = value), color = "grey50") + 
