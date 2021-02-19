@@ -3,7 +3,7 @@
 sir_step <- Csnippet("
                      // adjust betat for social distancing interventions
                      double betat;
-                     if (intervention == 3 & thresh_crossed == 1) { // 2 is for threshhold intervention
+                     if (intervention == 3 & thresh_crossed == 1) { // 3 is for threshhold intervention
                        betat = beta0*thresh_int_level; 
                      } 
                      else if (intervention == 3 & thresh_crossed == 0) {
