@@ -42,10 +42,10 @@ epi_df <- fread("https://raw.githubusercontent.com/nytimes/covid-19-data/master/
 # Figure 1: R0 and Reff from different fit dates ----
 # R0_covid calulation needed from ../COVID_pomp.R
 # all we need from this is the R0 calculation, and we don't want to read in anything else, so lets just grab those lines
-read_start = grep("covid_R0", readLines("../COVID_pomp.R"))
-read_end = grep("}", readLines("../COVID_pomp.R"))
+read_start = grep("covid_R0", readLines("COVID_pomp.R"))
+read_end = grep("}", readLines("COVID_pomp.R"))
 read_end = read_end[which(read_end > read_start)] %>% min
-source(textConnection(readLines("../COVID_pomp.R")[read_start:read_end]))
+source(textConnection(readLines("COVID_pomp.R")[read_start:read_end]))
 
 
 weekly_fits = alply(list.files("weekly_fits", full.names = T, pattern = "Santa Clara"),
