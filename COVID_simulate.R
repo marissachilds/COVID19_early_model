@@ -10,6 +10,8 @@
 
 # the parameters that must be set for simulation are in the COVID_simulate_params.R file
 
+library(doParallel)
+
 COVID_simulate <- function(rds.name, 
                            nsim = 1, ## Number of epidemic simulations for each parameter set or filtering traj
                            traj.file = NULL, # NULL results in not using filtering trajectories
@@ -21,7 +23,9 @@ COVID_simulate <- function(rds.name,
                            test_and_isolate_s = NA,     ## Additional proportional reduction of severe cases under test and isolate
                            test_and_isolate_m = NA,     ## Additional proportional reduction of mild cases under test and isolate
                            light = FALSE, # Do we ever do to lightswitch? 
-                           red_shelt.s = NA,     ## New social dist strength after time red_shelt.t, or for light switch, social distancing level to return to when thresh_H.start exceeded 
+                           red_shelt.s = NA,     ## New social dist strength after time red_shelt.t
+                           red_shelt.crossed = NA, ## only used for lightswitch, distancing when hospitals are above a threshold
+                           red_shelt.free    = NA, ## only used for lightswitch, distancing when hospitals are below a threshold
                            thresh_H.start = NA, ## Threshold when lightswtich turns on (when we get higher than this)
                            thresh_H.end = NA, ## Threshold when lightswtich turns on (when we get higher than this)
                            loglik.thresh = 2,       ## Keep parameter sets with a likelihood within top X loglik units, to only fit with MLE, use 0
@@ -29,6 +33,7 @@ COVID_simulate <- function(rds.name,
                            seed.val = NULL, 
                            counterfactual = FALSE,
                            delay_days = NA,
+                           last_date_only = FALSE,
                            ...){     ## ...if FALSE, pick the top X by loglik to use
                            
 if(!is.null(seed.val)) {set.seed(seed.val)}
@@ -125,12 +130,20 @@ for (i in 1:nrow(variable_params)) {
                           rep(3, max(sim_length - red_shelt.t, 0))
                         }}
                       )
-                      , thresh_int_level = rep(soc_dist_level_sip, sim_length)
-                      , back_int_level   = rep(red_shelt.s, sim_length)
+                      , thresh_int_level = if (!light) {
+                        rep(soc_dist_level_sip, sim_length)
+                      } else {
+                        rep(red_shelt.crossed, sim_length)
+                      }
+                      , back_int_level   = if (!light) {
+                        rep(red_shelt.s, sim_length)
+                      } else {
+                        rep(red_shelt.free, sim_length) 
+                      }
                       , isolation = {if (!inf_iso) { rep(0, sim_length)
                                     } else { c(rep(0, red_shelt.t), rep(1,  max(sim_length - red_shelt.t, 0)))}}
                       , iso_severe_level = rep(test_and_isolate_s, sim_length)      # % of contats that severe cases maintain
-                      , iso_mild_level   = rep(test_and_isolate_m, sim_length)   # % of contats that mild cases maintain
+                      , iso_mild_level   = rep(test_and_isolate_m, sim_length)      # % of contats that mild cases maintain
                       , soc_dist_level_wfh = {
                         if (!inf_iso & !light) {
                           rep(soc_dist_level_wfh, sim_length)
@@ -256,6 +269,10 @@ for (i in 1:nrow(variable_params)) {
    mutate(paramset = variable_params[[i, "paramset"]],
           mif2_iter = variable_params[[i, "mif2_iter"]],
           date = round(as.Date(day, origin = variable_params[i, ]$sim_start)))
+ 
+if (last_date_only) {
+ SEIR.sim %<>% filter(date == max(date))
+}
      
 ## Stich together output
 if (i == 1) {

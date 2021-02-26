@@ -37,10 +37,10 @@ all_fits_trajs = data.frame(
 # some general parameters for simulating
 sim_params <- list(
   seed.val = 10001 
-  , nsim           = 10     ## Number of epidemic simulations for each filtering trajectory
+  , nsim           = 2      ## Number of epidemic simulations for each filtering trajectory
   , loglik.thresh  = 2       ## Keep parameter sets with a likelihood within top X loglik units, to only fit with MLE, use 0
-  , all.params = FALSE
-  , nparams = 2
+  , all.params     = FALSE
+  , nparams        = 1
 )
 
 # model assessment ----
@@ -49,10 +49,10 @@ model_assess_params <- list( # general parameters for the model assessment simul
      , traj.trim_date = NA
      , sim_end_date   = as.Date("2020-07-01")
      , red_shelt.t    = 500 
-     , ntraj = 2
+     , ntraj          = 2
 ) 
 
-model_asses_sims <- mdply(all_fits_trajs[c(1,5,9), ], 
+model_asses_sims <- mdply(all_fits_trajs[5, ], 
                           function(fit_name, fit_date, traj_name){
   print(fit_date)
   sim_length <- difftime(model_assess_params[["sim_end_date"]], fit_date, units = "days") %>% as.numeric()
@@ -72,49 +72,71 @@ model_asses_sims %>%
   geom_vline(aes(xintercept = fit_date)) +
   theme_bw()
 
-
 # NPIs ----
 NPI_general_params <- list(
-  sim_length     = 300      ## if using trajectories, how many additional days from the end of the data to run the simulation, if not using trajectories, how long total the simulation will be
-  , params.all     = FALSE     ## Keep all fitted parameters above loglik thresh?...
-  , nparams        = 5  
+  ## if using trajectories, how many additional days from the end of the data to run the simulation, if not using trajectories, how long total the simulation will be
+    sim_length     = as.numeric(as.Date("2021-05-01") - as.Date("2020-04-22"))      
+  , nparams        = 1
+)
+
+sim_params <- list(
+  seed.val = 10001 
+  , nsim           = 2       ## Number of epidemic simulations for each filtering trajectory
+  , loglik.thresh  = 2        ## Keep parameter sets with a likelihood within top X loglik units, to only fit with MLE, use 0
+  , ntraj          = 2
+  , last_date_only = F
 )
 
 NPI_intervention_params <- list(
-  maintain       = list(red_shelt.t    = 500     
-                        , inf_iso  = FALSE   
-                        , light    = FALSE
+  maintain       = list(red_shelt.t          = 500     
+                        , inf_iso            = FALSE   
+                        , light              = FALSE
                         , scenario_name = "maintain")
   , test_isolate = list(red_shelt.t          = 0
                         , inf_iso            = TRUE
                         , light              = FALSE
                         , test_and_isolate_s = 0.2     
-                        , test_and_isolate_m = 0.2     
+                        , test_and_isolate_m = 0.3    
                         , red_shelt.s        = 0.5
                         , scenario_name = "isolate")
   , light        = list(red_shelt.t          = 0
                         , inf_iso            = FALSE
                         , light              = TRUE
-                        , red_shelt.s        = 0.9
-                        , thresh_H.start     = 100      
-                        , thresh_H.end       = 50
+                        , red_shelt.crossed  = 0.20
+                        , red_shelt.free     = 0.50  
+                        , thresh_H.start     = 35      
+                        , thresh_H.end       = 5
                         , scenario_name = "light")
-  , lift         = list(red_shelt.t = 0
-                        , inf_iso  = FALSE   
-                        , light    = FALSE
-                        , red_shelt.s = 0
+  , lift         = list(red_shelt.t          = 0
+                        , inf_iso            = FALSE   
+                        , light              = FALSE
+                        , red_shelt.s        = 0
                         , scenario_name = "lift")
 )
+
+NPI_intervention_params <- list(
+    light        = list(red_shelt.t          = 0
+                        , inf_iso            = FALSE
+                        , light              = TRUE
+                        , red_shelt.crossed  = 0.40
+                        , red_shelt.free     = 0.80  
+                        , thresh_H.start     = 20      
+                        , thresh_H.end       = 5
+                        , scenario_name = "light")
+)
+  
 
 intervention_sims <- ldply(NPI_intervention_params, function(int_params){
   print(int_params[["scenario_name"]])
   do.call(COVID_simulate, 
           args = c(int_params, NPI_general_params, sim_params, 
-                   rds.name  = "output/Santa_Clara_TRUE_FALSE_2020-04-29_2021-02-08_final.Rds",
-                   traj.file = "output/Santa_Clara_TRUE_FALSE_2020-04-29_2021-02-08_final_filter_traj.Rds")) %>%
+                   rds.name  = "output/Santa_Clara_TRUE_FALSE_2020-04-22_2021-02-05_final.Rds",
+                   traj.file = "output/Santa_Clara_TRUE_FALSE_2020-04-22_2021-02-05_final_filter_traj.Rds")) %>%
     mutate(scenario = int_params[["scenario_name"]]) %>%
     return
   })
+
+intervention_sims %>% filter(scenario == "light", traj_set == 1) %>% {ggplot(., aes(day, H_new)) + geom_line(aes(group = .id))}
 
 intervention_sims %>% 
   filter(.id == 1) %>%
