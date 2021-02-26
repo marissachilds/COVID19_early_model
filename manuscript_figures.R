@@ -546,3 +546,107 @@ pct_S_trajs <- data.frame(fit_name = c("output/Santa_Clara_TRUE_FALSE_2020-04-01
   facet_wrap(~fit_date, ncol = 1)} %>%
   {ggsave("figures/pct_S.pdf", ., width = 12, height = 7)}
 
+# Lightswitch -----
+
+intervention_sims <- readRDS("figure_rds/lightswitch.Rds")
+
+gg1h <- ggplot(intervention_sims %>% filter(scenario == "light", .id == "traj"), aes(date, D)) + 
+  geom_line(aes(group = interaction(.id, traj_set))) +
+  geom_line(
+    data = intervention_sims %>% filter(scenario == "light", .id != "traj")
+    , aes(group = interaction(.id, traj_set)), alpha = 0.10, colour = "grey40") +
+  xlab("Date") + ylab("Cumulative Deaths")
+
+gg2h <- ggplot(intervention_sims %>% filter(scenario == "light", .id == "traj"), aes(date, H)) + 
+  geom_line(aes(group = interaction(.id, traj_set))) +
+  geom_line(
+    data = intervention_sims %>% filter(scenario == "light", .id != "traj")
+    , aes(group = interaction(.id, traj_set)), alpha = 0.10, colour = "grey40") +
+  xlab("Date") + ylab("Hospitalized")
+
+gridExtra::grid.arrange(gg1h, gg2h, ncol = 1)
+
+  
+# Interventions -----
+
+intervention_sims <- readRDS("figure_rds/interventions.Rds")
+intervention_sims <- intervention_sims %>% mutate(total_inf = I + H)
+intervention_sims$scenario <- factor(intervention_sims$scenario, levels = c("lift", "maintain", "isolate"))
+fig4_colors       <- c("firebrick4", "dodgerblue4", "darkgoldenrod4")
+deaths            <- deaths %>% 
+  mutate(deaths_cum = deaths) %>% 
+  mutate(deaths = deaths_cum - lag(deaths_cum)) %>% 
+  replace_na(list(deaths = 0))
+
+ggI1 <- ggplot(intervention_sims) + 
+  geom_line(data = (intervention_sims %>% filter(.id != "traj"))
+            , aes(x        = date
+                  , y      = D
+                  , group  = interaction(.id, scenario, traj_set)
+                  , colour = scenario
+            ), alpha = 0.05) + 
+  geom_line(data = (intervention_sims %>% filter(.id == "traj"))
+            , aes(x       = date
+                  , y     = D
+                  , group = interaction(traj_set, scenario)
+            ), color = "grey30", alpha = 0.1) + 
+  scale_x_date(labels = date_format("%b"), date_breaks = "1 month") +
+  scale_colour_manual(
+    name = "Intervention"
+  , values = fig4_colors
+  , labels = c(
+    "Lift"
+  , "Maintain"
+  , "Test and Isolate"
+    )) +
+  guides(color = guide_legend(override.aes = list(alpha = 1, lwd = 2))) +
+  ylab("Cumulative Deaths") +
+  xlab("") +
+  geom_point(data = deaths, aes(date, deaths_cum), lwd = 2, color = "black") +
+  scale_y_log10(breaks = c(1, 10, 100, 1000, 5000), labels = c(1, 10, 100, 1000, 5000)) +
+  theme(legend.title = element_text(size = 16)
+        , axis.text.x = element_blank()
+        , legend.position = c(0.8, 0.3)
+        , legend.key.size = unit(.55, "cm")
+        , legend.text = element_text(size = 14) 
+        , plot.title = element_text(size = 12)
+        , axis.ticks.x = element_blank()) +
+  annotate("text", x = as.Date("2020-02-01"), y = 3000, label = "a",
+           size = 8, fontface = 2)
+
+ggI2 <- ggplot(intervention_sims) + 
+  geom_line(data = (intervention_sims %>% filter(.id != "traj"))
+            , aes(x        = date
+                  , y      = total_inf
+                  , group  = interaction(.id, scenario, traj_set)
+                  , colour = scenario
+            ), alpha = 0.05) + 
+  geom_line(data = (intervention_sims %>% filter(.id == "traj"))
+            , aes(x       = date
+                  , y     = total_inf
+                  , group = interaction(traj_set, scenario)
+            ), color = "grey30", alpha = 0.1) + 
+  scale_x_date(labels = date_format("%b"), date_breaks = "3 month") +
+  scale_colour_manual(
+    values = fig4_colors
+  , labels = c(
+    "Lift"
+  , "Maintain"
+  , "Test and Isolate"
+    )) +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.5, size = 12)
+  , legend.title = element_text(size = 12)
+  , plot.title = element_text(size = 12)) +
+  ylab("Concurrent Infections") +
+  xlab("Date") +
+  scale_y_log10(breaks = c(1, 10, 100, 1000, 10000, 100000), labels = c(1, 10, 100, 1000, 10000, 1E5)) +
+  theme(legend.title = element_text(size = 12)
+        , legend.text = element_text(margin = margin(b = 10, unit = "pt"), size = 10)
+        , legend.position = c(0.8, 0.3)) +
+  guides(colour = FALSE) +
+  annotate("text", x = as.Date("2020-02-01"), y = 200000, label = "b",
+           size = 8, fontface = 2)
+
+gridExtra::grid.arrange(ggI1, ggI2, ncol = 1)
+
+  
