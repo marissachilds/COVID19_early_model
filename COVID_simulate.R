@@ -23,7 +23,7 @@ COVID_simulate <- function(rds.name,
                            test_and_isolate_s = NA,     ## Additional proportional reduction of severe cases under test and isolate
                            test_and_isolate_m = NA,     ## Additional proportional reduction of mild cases under test and isolate
                            light = FALSE, # Do we ever do to lightswitch? 
-                           red_shelt.s = NA,     ## New social dist strength after time red_shelt.t
+                           red_shelt.s = NA,     ## New social dist strength after time red_shelt.t, use "sip" to use the inferred shelter-in-place level of social distancing
                            red_shelt.crossed = NA, ## only used for lightswitch, distancing when hospitals are above a threshold
                            red_shelt.free    = NA, ## only used for lightswitch, distancing when hospitals are below a threshold
                            thresh_H.start = NA, ## Threshold when lightswtich turns on (when we get higher than this)
@@ -125,7 +125,8 @@ for (i in 1:nrow(variable_params)) {
                         , {if (!inf_iso & !light) { # no intervention
                           rep(0, max(sim_length - red_shelt.t, 0))
                         } else if (inf_iso & !light) { # infected isolation with background social
-                          rep(1, max(sim_length - red_shelt.t, 0))
+                          # if red_shelt.s is "sip", use the assume sip level social distancing remains, which is intervention 2
+                          {if(red_shelt.s == "sip"){rep(2, max(sim_length - red_shelt.t, 0)) } else {rep(1, max(sim_length - red_shelt.t, 0))}}
                         } else if (!inf_iso & light) { # lightswitch
                           rep(3, max(sim_length - red_shelt.t, 0))
                         }}
