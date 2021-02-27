@@ -350,7 +350,6 @@ cases_traj_fig
 ggpubr::ggarrange(cases_traj_fig,  nrow = 1) %>% 
   ggsave(filename = "figures/cases_assess.pdf", width = 16, height = 7*.6)
 
-  
 
 # figure 6: interventions 
 
@@ -371,7 +370,6 @@ mif_traces_all <- mdply(all_fits_trajs, function(fit_name, fit_date, traj_name){
   select(loglik, beta0, soc_dist_level_sip, E_init, 
          paramset, mif2_iter, mif_step, fit_date) 
 
-
 # mif LL traces ----
 {mif_traces_all  %>%
   filter(fit_date %in% diag_dates) %>%
@@ -379,19 +377,33 @@ mif_traces_all <- mdply(all_fits_trajs, function(fit_name, fit_date, traj_name){
   mutate(LL_max = max(loglik, na.rm = TRUE)) %>%
   group_by(fit_date) %>% 
   mutate(LL_max_std = LL_max - max(loglik, na.rm = TRUE)) %>%
-  filter(paramset <= 10) %>%
+  filter(paramset <= 10, mif_step > 100) %>%
   filter(mif_step > 30 & LL_max_std > -5) %>% 
   ggplot(aes(x = mif_step, 
              # y = asinh(loglik),
              y = loglik,
              group = interaction(fit_date, paramset, mif2_iter),
              color = as.factor(paramset))) +
-  geom_line()  + 
-  facet_wrap(~fit_date, scales = "free") +
-  theme_bw()} %>% 
-  ggsave(filename = "figures/mifs_LL_traces.pdf", width = 12, height = 6)
+  xlab("Filtering Iteration") +
+  ylab("log-likelihood") + 
+  scale_colour_discrete(name = "Parameter Set") +
+  guides(color = guide_legend(override.aes = list(alpha = 1, lwd = 2) ) ) +
+  theme(
+      axis.text.x = element_text(size = 17)
+    , axis.text.y = element_text(size = 14)
+    , axis.title.x = element_text(size = 17)
+    , axis.title.y = element_text(size = 17)) +
+  geom_line(alpha = 0.5)  + 
+  facet_wrap(~fit_date, scales = "free")} # %>% ggsave(filename = "figures/mifs_LL_traces.pdf", width = 12, height = 6)
 
 # violins of fit parameters ----
+
+variable_labels <- c(
+  expression(paste(Baseline~Transmission~Rate~β[1]))
+, expression(paste(Initial~Number~Infected-E[0]))
+, expression(paste(Shelter~In~Place~Social~Distancing-σ[SIP]))
+)
+
 {variable_params_all %>% 
   select(-c(int_length2, int_start2, int_length1, iso_start)) %>% 
   group_by(fit_date) %>% 
@@ -404,13 +416,19 @@ mif_traces_all <- mdply(all_fits_trajs, function(fit_name, fit_date, traj_name){
   mutate(name = ifelse(name == "beta0est", "beta0", name)) %>%
   # filter(name %in% c("E_init", "R0", "Reff")) %>%
   ggplot(aes(y = value, x = fit_date, 
-             group = fit_date, fill = fit_date)) + 
-  geom_violin() + 
-  facet_wrap(~name, scales = "free") + 
-  theme_bw()} %>% 
-  ggsave("figures/fit_param_violins.pdf", plot =., width = 12, height = 4)
+             group = fit_date)) + 
+  geom_violin(lwd = 1) + 
+  xlab("Last Date of Data Used in Model Fitting") +
+  ylab("Parameter Estimate") +
+  theme(
+      axis.text.x = element_text(size = 17)
+    , axis.text.y = element_text(size = 14)
+    , axis.title.x = element_text(size = 17)
+    , axis.title.y = element_text(size = 17)) +
+  facet_wrap(~name, scales = "free")} # %>% ggsave("figures/fit_param_violins.pdf", plot =., width = 12, height = 4)
 
 # mif replicates traces ----
+fig4_colors <- c("dodgerblue4", "firebrick4", "darkgoldenrod4")
 {mif_traces_all  %>%
   group_by(fit_date, paramset, mif2_iter) %>% 
   mutate(LL_final = min(loglik, na.rm = TRUE)) %>%  
@@ -422,10 +440,20 @@ mif_traces_all <- mdply(all_fits_trajs, function(fit_name, fit_date, traj_name){
   ggplot(aes(x = mif_step, y = value,
              color = as.factor(fit_date),
              group = interaction(fit_date, paramset, mif2_iter))) + 
-  geom_line(alpha = 1) + 
-  facet_grid(name ~ paramset, scales = "free_y") + 
-  theme_bw()} %>% 
-  ggsave("figures/mif_replicate_traces.pdf", plot = ., width = 12, height = 6)
+  geom_line(alpha = 1, alpha = 0.8) + 
+  scale_x_continuous(breaks = c(50, 150, 250)) +
+  xlab("Filtering Iteration") +
+  ylab("Parameter Estimate") + 
+  scale_colour_manual(name = "Fitting Date", values = fig4_colors) +
+  guides(color = guide_legend(override.aes = list(alpha = 1, lwd = 2) ) ) +
+  theme(
+      axis.text.x = element_text(size = 17)
+    , axis.text.y = element_text(size = 14)
+    , axis.title.x = element_text(size = 17)
+    , axis.title.y = element_text(size = 17)
+    , strip.text.x = element_text(size = 15)
+    , strip.text.y = element_text(size = 15)) +
+  facet_grid(name ~ paramset, scales = "free_y")} # %>% ggsave("figures/mif_replicate_traces.pdf", plot = ., width = 12, height = 6)
 
 # mif replicate LLs ??? ---- 
 range_length = function(x){
