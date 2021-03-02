@@ -43,4 +43,25 @@ inf_iso_sims <-
       return
   })
 
+inf_iso_sims_comp <-
+  do.call(COVID_simulate, 
+          args = list(sim_length       = as.numeric(as.Date("2021-06-30") - as.Date("2020-04-22"))      
+                      , seed.val       = 10001 
+                      , nsim           = 25      
+                      , ntraj          = 25
+                      , loglik.thresh  = 2       
+                      , red_shelt.t        = 1000
+                      , red_shelt.s        = "sip"
+                      , rds.name  = "output/Santa_Clara_TRUE_FALSE_2020-04-22_2021-02-05_final.Rds"
+                      , traj.file = "output/Santa_Clara_TRUE_FALSE_2020-04-22_2021-02-05_final_filter_traj.Rds"
+                      , inf_iso            = FALSE
+                      , light              = FALSE
+                      , last_date_only     = TRUE)) %>% 
+  select(paramset, mif2_iter, traj_set, .id, D, date) %>% 
+  mutate(scenario = "maintain") 
+
+inf_iso_sims %<>% rbind(inf_iso_sims_comp %>% 
+                          mutate(inf_iso_level = NA, 
+                                 background_soc_dist = NA))
+
 saveRDS(inf_iso_sims, "output/inf_iso_sims_D.Rds")
