@@ -34,6 +34,7 @@ COVID_simulate <- function(rds.name,
                            counterfactual = FALSE,
                            delay_days = NA,
                            last_date_only = FALSE,
+                           summary_fun, # optional summary function to apply to the simulation output before returning, this function should take in the SEIR.sim from all sims for a parameter set and return a data frame
                            ...){     ## ...if FALSE, pick the top X by loglik to use
                            
 if(!is.null(seed.val)) {set.seed(seed.val)}
@@ -273,6 +274,9 @@ for (i in 1:nrow(variable_params)) {
  
 if (last_date_only) {
  SEIR.sim %<>% filter(date == max(date))
+} 
+if (!missing(summary_fun)) { 
+  SEIR.sim %<>% summary_fun
 }
      
 ## Stich together output
