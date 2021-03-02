@@ -351,11 +351,124 @@ ggpubr::ggarrange(cases_traj_fig,  nrow = 1) %>%
   ggsave(filename = "figures/cases_assess.pdf", width = 16, height = 7*.6)
 
 
-# figure 6: interventions 
+# figure S?: counterfactuals  ----
+counterfactual_sims <- readRDS("output/simulations/counterfactual_sims.Rds")
 
-# figure S?: counterfactuals 
+c("grey30", "#D67236", "#0b775e") %>% # some colors to use for all panels
+  {list(
+    {counterfactual_sims[["traj"]] %>% 
+        pivot_longer(D:I_new_sympt) %>% 
+        mutate(plot_col = factor(ifelse(.id == "traj", "observed", scenario), 
+                                 levels = c("observed", "week_delay", "iso")),
+               plot_name = ifelse(name == "D", "Cumulative Deaths", "Daily Cases")) %>%
+        ggplot(aes(x = date, y = value, 
+                   color = plot_col,
+                   group = interaction(paramset, scenario, 
+                                       mif2_iter, traj_set, .id))) + 
+        geom_line(alpha = 0.1) + 
+        geom_vline(xintercept = as.Date("2020-03-17"), 
+                   linetype = "dashed") +
+        scale_y_continuous(name = "", trans = "pseudo_log",
+                           breaks = c(10^{0:4})) +
+        scale_x_date(labels = date_format("%b"), date_breaks = "1 month",
+                     limits = c(as.Date("2020-02-01"), NA)) +
+        scale_colour_manual(values = .,
+                            guide = FALSE,
+                            labels = c(
+                              "Reality",
+                              "Shelter in Place\nStarting One Week Later", 
+                              "Test and Isolate\nStarting on March 17, 2020"
+                              )) +
+        geom_text(data = data.frame(plot_name = c("Cumulative Deaths", "Daily Cases"),
+                                    plot_label = c("a", "b"),
+                                    lab_y = c(175, 2750)),
+                  aes(y = lab_y, label = plot_label),
+                  x = as.Date("2020-02-03"), 
+                  inherit.aes = FALSE,
+                  size = 8, fontface = 2) +
+        facet_wrap(~plot_name, nrow = 2, scales = "free_y",
+                   strip.position = "left") + 
+        theme(strip.placement = "outside",
+              strip.text = element_text(size = 16))},
+    {counterfactual_sims[["total_D"]] %>%
+      pivot_wider(names_from = scenario, values_from = D) %>% 
+      mutate(delay_change = week_delay - observed, 
+             iso_change = iso - observed) %>% 
+      select(ends_with("change")) %>% 
+      pivot_longer(ends_with("change")) %>% 
+        # rbind(data.frame(name = "obs", value = NA)) %>% # add an empty row so "reality"/"obs" gets included in the legend
+      mutate(name = factor(gsub("_change", "", name),
+                           levels = c("obs", "delay", "iso"))) %>%
+      ggplot(aes(x = value, group = name, 
+                 color = name, 
+                 fill = name)) +
+      geom_histogram(aes(y = ..density..,),
+                     position = "identity",
+                     colour = "black", bins = 50,
+                     lwd = 0.2, alpha = 0.5) +
+      geom_density(alpha = 0.6) +
+      scale_fill_manual(name = "Scenario", values = .,
+                        labels = c("Reality\n",
+                                   "Shelter in Place\nStarting One Week Later",
+                                   "Test and Isolate\nStarting on March 17, 2020"),
+                        aesthetics = c("fill", "color"),
+                        drop = FALSE) +
+      theme(legend.title    = element_text(size = 12),
+            legend.position = c(0.67, 0.8),
+            legend.text     = element_text(margin = margin(b = 10, unit = "pt"), 
+                                           size = 10)) + 
+      ylab("Density") +
+      xlab("Difference in Total Deaths") +
+      ggtitle("Estimated Mortality as of April 22, 2020") +
+      annotate("text", x = -90, y = 0.032, label = "c",
+               size = 8, fontface = 2) +
+      geom_vline(xintercept = 0)}
+    )} %>% 
+  arrangeGrob(grobs = ., ncol = 2) %>%
+  ggsave(filename = "figures/counterfactuals.pdf", 
+         width = 10, height = 6,
+         units = "in")
 
-# figure S?: infected isoltation sensetivity 
+# figure S?: infected isoltation sensetivity ----
+inf_iso_sims <- readRDS("output/simulations/inf_iso_sims.Rds")
+
+inf_iso_sims %>% 
+  group_by(inf_iso_level, background_soc_dist, scenario) %>% 
+  summarise_at(vars(D), ~list(quantile(.x, probs = c(0.025, 0.05,  0.5, 0.95, 0.975)))) %>% 
+  unnest_wider(D, names_sep = "_") %>% 
+  rename_at(vars(starts_with("D_")), function(x) gsub("%", "", x, fixed = T)) %>% 
+  ungroup %>%
+  {ggplot(data = filter(., scenario != "maintain"),
+          aes(x = 1 - background_soc_dist, 
+             y = D_50, 
+             group = 1 - inf_iso_level, 
+             color = as.factor(1 - inf_iso_level))) + 
+      geom_hline(yintercept = filter(., scenario == "maintain") %>% 
+                   select(starts_with("D_")) %>% 
+                   unlist(),
+                 color = "grey", 
+                 linetype = c("dotted", "dashed", "solid", "dashed", "dotted")) +
+      geom_point(position = position_dodge(width = 0.05), size = 2) +
+      geom_linerange(aes(ymin = D_2.5, ymax = D_97.5), 
+                     position = position_dodge(width = 0.05)) + 
+      geom_linerange(aes(ymin = D_5, ymax = D_95), 
+                     size = 1.2,
+                     position = position_dodge(width = 0.05)) + 
+      scale_y_continuous(trans = "pseudo_log", 
+                         breaks = c(250, 500, 1000, 2500, 5000, 10000),
+                         name = "Total Deaths") + 
+      scale_x_continuous(labels = scales::percent_format(accuracy = 1),
+                         name = "Background Social Distancing Effectiveness") +
+      scale_color_manual(values = c("lightblue", "royalblue3", "black")
+                         , labels = function(x){scales::percent(as.numeric(x))}
+                         , name   = "Test-and-Isolate\nEffectiveness") +
+      theme(legend.text = element_text(size = 10), 
+            legend.title = element_text(size = 12),
+            legend.position = c(0.85, 0.7))} %>% 
+ggsave(filename = "figures/inf_iso_sensitivity.pdf", 
+       width = 6, height = 5,
+       units = "in")
+
 
 # SUPPLEMENT FIGURES ----
 
