@@ -16,13 +16,14 @@ needed_packages <- c(
 lapply(needed_packages, library, character.only = TRUE)
 
 # colors 
-fig2_colors = c("#B40F20", "#E58601", "#046C9A", "grey30") # old colors
-fig3_colors = c("#273046",
-                "#366d8a",
-                "#78B7C5")
-fig4_colors = c("grey30",
-                "#D67236",
-                "#0b775e")
+# fig2_colors = c("#B40F20", "#E58601", "#046C9A", "grey30") # old colors
+fig2_colors = c("firebrick4", "darkgoldenrod4", "grey30")
+# fig3_colors = c("#273046",
+#                 "#366d8a",
+#                 "#78B7C5")
+# fig4_colors = c("grey30",
+#                 "#D67236",
+#                 "#0b775e")
 
 source("ggplot_theme.R")
 
@@ -54,7 +55,7 @@ all_fits_trajs = data.frame(
                "output/fits/Santa_Clara_TRUE_FALSE_2020-06-24_2021-02-05_final.Rds")) %>% 
   separate(fit_name, into = c(NA, NA, NA, NA, "fit_date", NA), sep = "_", remove = FALSE) %>% 
   mutate(fit_date = as.Date(fit_date),
-         traj_name = gsub("fits", "filter_trajectories", gsub(".Rds", "_filter_traj.Rds", fit_name)))
+         traj_name = gsub("fits", "filtering_trajectories", gsub(".Rds", "_filter_traj.Rds", fit_name)))
 
 variable_params_all <- all_fits_trajs %>% 
   mdply(function(fit_name, fit_date, traj_name){
@@ -82,7 +83,7 @@ r_ests <- variable_params_all %>% select(fit_date, R0, Reff, log_lik) %>%
                       y = value, fill = name, 
                       group = interaction(fit_date, name)),
                   scale = "width", #"area", 
-                  color = "black",
+                  color = NA,
                   width = 5,
                   size = 0.5,
                   trim = TRUE, 
@@ -105,18 +106,27 @@ r_ests <- variable_params_all %>% select(fit_date, R0, Reff, log_lik) %>%
                                     plot_panel = c("Daily deaths", "Daily reported\ncases")),
                  aes(xintercept = fit_date),
                  lty = "dotted", color = "grey60")+ 
-      scale_color_manual(values = alpha(fig2_colors[1:2], 0.5), 
+      scale_color_manual(values = fig2_colors[1:2], 
                          name = "Estimate",
                          labels = c(expression(paste(R[0])),
                                     expression(paste(R[eff]))),
                          aesthetics = c("colour", "fill")) + 
       scale_y_continuous(breaks = breaks_fun) +
+      scale_x_date(limits = c(as.Date("2020-03-01"), NA),
+                   expand = c(0, 0.6)) +
       ylab("") +
       xlab("Last day of data used in fit") +
+      geom_text(data = data.frame(plot_panel = c("Reproduction number\nestimates", "Daily reported\ncases", "Daily deaths"),
+                                  plot_label = c("a", "b", "c"),
+                                  label_x = rep(as.Date("2020-03-03")),
+                                  label_y = c(6, 150, 8)),
+                aes(x = label_x, y = label_y, label = plot_label),
+                size = 8, fontface = 2,
+                inherit.aes = FALSE) +
       theme(text=element_text(size=16),
             axis.title.y.right = element_text(hjust=0.8, vjust = 1),
             legend.text.align = 0,
-            legend.position = c(0.08, 0.9),
+            legend.position = c(0.18, 0.9),
             plot.margin = margin(t = 5.5, r = 5.5, b = 0, l = 5.5),
             strip.placement =  "outside", 
             strip.text = element_text(hjust = 0.5, vjust = 0.5)) }
@@ -181,7 +191,7 @@ assess_sims <- list(ci = ldply(assess_sims, function(l){l[["ci"]]}),
                   score = ldply(assess_sims, function(l){l[["score"]]}))
 
 # saveRDS(assess_sims, "output/asses_sims_summarised_by_sim.Rds")
-# readRDS("output/assess_sims_summarised_by_sim.Rds")
+# assess_sims <- readRDS("output/assess_sims_summarised_by_sim.Rds")
 
 traj_dates <- as.Date(c("2020-04-01", "2020-04-22", "2020-05-13", 
                         "2020-06-03", "2020-06-24"))
@@ -231,8 +241,8 @@ deaths_traj_fig <- assess_sims[["ci"]] %>%
                           type = factor(type, levels = c("pre", "assess", "post"))),
                  mapping = aes(x = date, y = deaths, color = type)) + 
       scale_colour_manual(values = c("black",# "#222222", #"#00A08A", # deaths past for fitting
-                                     "#CA0020", # future predictions within 2 weeks of fit
-                                     alpha("blue", 0.3)), # "#F4A582" #  #"#EF8A62", #"#F4A582", #alpha("#FF0000", 0.4),  # future predictions > 2 weeks of fit
+                                     "#00A08A", # future predictions within 2 weeks of fit
+                                     alpha("#5BBCD6", 0.75)), # "#F4A582" #  #"#EF8A62", #"#F4A582", #alpha("#FF0000", 0.4),  # future predictions > 2 weeks of fit
                           labels = c("Deaths used for\nmodel fitting", "Future predicted,\ncompared",
                                      "Future predicted,\nuncompared"),
                           name = "") + 
@@ -330,8 +340,8 @@ cases_traj_fig <- assess_sims[["ci"]] %>%
                                            diff_date > 0 ~ "post"),
                           type = factor(type, levels = c("pre", "assess", "post"))),
                  mapping = aes(x = date, y = cases_scaling*cases, color = type),
-                 alpha = 0.5) + 
-      scale_colour_manual(values = c("blue", #"#00A08A", # deaths past for fitting
+                 alpha = 0.75) + 
+      scale_colour_manual(values = c("#3B9AB2", #"blue", #"#00A08A", # deaths past for fitting
                                      "#CA0020"), # future predictions within 2 weeks of fit
                           labels = c("Simultaneously\npredicted cases", 
                                      "Future\npredicted cases"),
@@ -343,7 +353,8 @@ cases_traj_fig <- assess_sims[["ci"]] %>%
                                              breaks = c(0, 1e1, 1e2, 1e3, 1e4, 1e5)/cases_scaling)) +
       scale_x_date(breaks = "2 months",
                          limits = as.Date(c("2020-02-15", NA)),
-                         date_labels = "%b")}
+                         date_labels = "%b") + 
+      guides(color = guide_legend(override.aes = list(alpha = 1, lwd = 2) ) )}
 
 cases_traj_fig
 
@@ -351,126 +362,65 @@ ggpubr::ggarrange(cases_traj_fig,  nrow = 1) %>%
   ggsave(filename = "figures/cases_assess.pdf", width = 16, height = 7*.6)
 
 
-# figure S?: counterfactuals  ----
-counterfactual_sims <- readRDS("output/simulations/counterfactual_sims.Rds")
-
-c("grey30", "#D67236", "#0b775e") %>% # some colors to use for all panels
-  {list(
-    {counterfactual_sims[["traj"]] %>% 
-        pivot_longer(D:I_new_sympt) %>% 
-        mutate(plot_col = factor(ifelse(.id == "traj", "observed", scenario), 
-                                 levels = c("observed", "week_delay", "iso")),
-               plot_name = ifelse(name == "D", "Cumulative Deaths", "Daily Cases")) %>%
-        ggplot(aes(x = date, y = value, 
-                   color = plot_col,
-                   group = interaction(paramset, scenario, 
-                                       mif2_iter, traj_set, .id))) + 
-        geom_line(alpha = 0.1) + 
-        geom_vline(xintercept = as.Date("2020-03-17"), 
-                   linetype = "dashed") +
-        scale_y_continuous(name = "", trans = "pseudo_log",
-                           breaks = c(10^{0:4})) +
-        scale_x_date(labels = date_format("%b"), date_breaks = "1 month",
-                     limits = c(as.Date("2020-02-01"), NA)) +
-        scale_colour_manual(values = .,
-                            guide = FALSE,
-                            labels = c(
-                              "Reality",
-                              "Shelter in Place\nStarting One Week Later", 
-                              "Test and Isolate\nStarting on March 17, 2020"
-                              )) +
-        geom_text(data = data.frame(plot_name = c("Cumulative Deaths", "Daily Cases"),
-                                    plot_label = c("a", "b"),
-                                    lab_y = c(175, 2750)),
-                  aes(y = lab_y, label = plot_label),
-                  x = as.Date("2020-02-03"), 
-                  inherit.aes = FALSE,
-                  size = 8, fontface = 2) +
-        facet_wrap(~plot_name, nrow = 2, scales = "free_y",
-                   strip.position = "left") + 
-        theme(strip.placement = "outside",
-              strip.text = element_text(size = 16))},
-    {counterfactual_sims[["total_D"]] %>%
-      pivot_wider(names_from = scenario, values_from = D) %>% 
-      mutate(delay_change = week_delay - observed, 
-             iso_change = iso - observed) %>% 
-      select(ends_with("change")) %>% 
-      pivot_longer(ends_with("change")) %>% 
-        # rbind(data.frame(name = "obs", value = NA)) %>% # add an empty row so "reality"/"obs" gets included in the legend
-      mutate(name = factor(gsub("_change", "", name),
-                           levels = c("obs", "delay", "iso"))) %>%
-      ggplot(aes(x = value, group = name, 
-                 color = name, 
-                 fill = name)) +
-      geom_histogram(aes(y = ..density..,),
-                     position = "identity",
-                     colour = "black", bins = 50,
-                     lwd = 0.2, alpha = 0.5) +
-      geom_density(alpha = 0.6) +
-      scale_fill_manual(name = "Scenario", values = .,
-                        labels = c("Reality\n",
-                                   "Shelter in Place\nStarting One Week Later",
-                                   "Test and Isolate\nStarting on March 17, 2020"),
-                        aesthetics = c("fill", "color"),
-                        drop = FALSE) +
-      theme(legend.title    = element_text(size = 12),
-            legend.position = c(0.67, 0.8),
-            legend.text     = element_text(margin = margin(b = 10, unit = "pt"), 
-                                           size = 10)) + 
-      ylab("Density") +
-      xlab("Difference in Total Deaths") +
-      ggtitle("Estimated Mortality as of April 22, 2020") +
-      annotate("text", x = -90, y = 0.032, label = "c",
-               size = 8, fontface = 2) +
-      geom_vline(xintercept = 0)}
-    )} %>% 
-  arrangeGrob(grobs = ., ncol = 2) %>%
-  ggsave(filename = "figures/counterfactuals.pdf", 
-         width = 10, height = 6,
-         units = "in")
-
-# figure S?: infected isoltation sensetivity ----
-inf_iso_sims <- readRDS("output/simulations/inf_iso_sims.Rds")
-
-inf_iso_sims %>% 
-  group_by(inf_iso_level, background_soc_dist, scenario) %>% 
-  summarise_at(vars(D), ~list(quantile(.x, probs = c(0.025, 0.05,  0.5, 0.95, 0.975)))) %>% 
-  unnest_wider(D, names_sep = "_") %>% 
-  rename_at(vars(starts_with("D_")), function(x) gsub("%", "", x, fixed = T)) %>% 
-  ungroup %>%
-  {ggplot(data = filter(., scenario != "maintain"),
-          aes(x = 1 - background_soc_dist, 
-             y = D_50, 
-             group = 1 - inf_iso_level, 
-             color = as.factor(1 - inf_iso_level))) + 
-      geom_hline(yintercept = filter(., scenario == "maintain") %>% 
-                   select(starts_with("D_")) %>% 
-                   unlist(),
-                 color = "grey", 
-                 linetype = c("dotted", "dashed", "solid", "dashed", "dotted")) +
-      geom_point(position = position_dodge(width = 0.05), size = 2) +
-      geom_linerange(aes(ymin = D_2.5, ymax = D_97.5), 
-                     position = position_dodge(width = 0.05)) + 
-      geom_linerange(aes(ymin = D_5, ymax = D_95), 
-                     size = 1.2,
-                     position = position_dodge(width = 0.05)) + 
-      scale_y_continuous(trans = "pseudo_log", 
-                         breaks = c(250, 500, 1000, 2500, 5000, 10000),
-                         name = "Total Deaths") + 
-      scale_x_continuous(labels = scales::percent_format(accuracy = 1),
-                         name = "Background Social Distancing Effectiveness") +
-      scale_color_manual(values = c("lightblue", "royalblue3", "black")
-                         , labels = function(x){scales::percent(as.numeric(x))}
-                         , name   = "Test-and-Isolate\nEffectiveness") +
-      theme(legend.text = element_text(size = 10), 
-            legend.title = element_text(size = 12),
-            legend.position = c(0.85, 0.7))} %>% 
-ggsave(filename = "figures/inf_iso_sensitivity.pdf", 
-       width = 6, height = 5,
-       units = "in")
-
-
 # SUPPLEMENT FIGURES ----
+
+# model assessment trajectories for deaths for all fit dates ----
+supp_deaths_traj_fig <- assess_sims[["ci"]] %>% 
+  rowwise %>% 
+  mutate(q97.5 = min(q97.5, 15)) %>%
+  {ggplot(data = .) + 
+      facet_wrap(~fit_date,
+                 labeller = function(x){format(x, format = "%B %e")}) +
+      # central 95% interval among all future sims
+      geom_ribbon(mapping = aes(x = date, ymin = q2.5, ymax = q97.5),
+                  data = filter(., date > fit_date & var == "deaths"),
+                  alpha = 0.5, fill = "grey", color = NA) +
+      # central 95% interval among all past trajectories
+      geom_ribbon(mapping = aes(x = date, ymin = q2.5, ymax = q97.5),
+                  data = filter(., date <= fit_date & var == "D_new"),
+                  alpha = 0.5, fill = "grey", color = NA) +
+      # median lines for individual paramsets among future sims
+      geom_line(mapping = aes(x = date, y = deaths,
+                              group = interaction(fit_date, paramset, mif2_iter)),
+                data = assess_sims[["mid"]] %>%
+                  filter(date > fit_date),
+                alpha = 0.1, color = "grey30") +
+      # median lines for individual paramsets among past trajectories
+      geom_line(mapping = aes(x = date, y = D_new,
+                              group = interaction(fit_date, paramset, mif2_iter)),
+                data = assess_sims[["mid"]] %>%
+                  filter(date <= fit_date),
+                alpha = 0.01, color = "grey30")  +
+      # add fit date lines
+      geom_vline(data = select(., fit_date) %>% unique,
+                 mapping = aes(xintercept = fit_date),
+                 linetype = "dashed") + 
+      # add data points
+      geom_point(data.frame(fit_date = unique(.$fit_date)) %>% 
+                   left_join(epi_df,
+                             by = character()) %>% 
+                   filter(date <= as.Date("2020-07-31")) %>%
+                   mutate(diff_date = difftime(date, fit_date, units = "days"),
+                          type = case_when(diff_date <= 0 ~ "pre",
+                                           diff_date > 14 ~ "post", 
+                                           T ~ "assess"),
+                          type = factor(type, levels = c("pre", "assess", "post"))),
+                 mapping = aes(x = date, y = deaths, color = type)) + 
+      scale_colour_manual(values = c("black",# "#222222", #"#00A08A", # deaths past for fitting
+                                     "#CA0020", # future predictions within 2 weeks of fit
+                                     alpha("blue", 0.3)), # "#F4A582" #  #"#EF8A62", #"#F4A582", #alpha("#FF0000", 0.4),  # future predictions > 2 weeks of fit
+                          labels = c("Deaths used for\nmodel fitting", "Future predicted,\ncompared",
+                                     "Future predicted,\nuncompared"),
+                          name = "") + 
+      xlab("") + ylab("Daily deaths") + 
+      ylim(0, 15) +
+      scale_x_date(breaks = "2 months",
+                   limits = as.Date(c("2020-02-15", NA)),
+                   date_labels = "%b")}
+
+ggsave(supp_deaths_traj_fig, 
+       filename = "supp_deaths_traj.pdf", 
+       width = 12, height = 9)
 
 # dates to use for supplemental diagnostic plots
 diag_dates <- as.Date(c("2020-04-01", "2020-05-13", "2020-06-24"))
@@ -511,24 +461,24 @@ mif_traces_all <- mdply(all_fits_trajs, function(fit_name, fit_date, traj_name){
 
 # violins of fit parameters ----
 
-variable_labels <- c(
-  expression(paste(Baseline~Transmission~Rate~β[1]))
-, expression(paste(Initial~Number~Infected-E[0]))
-, expression(paste(Shelter~In~Place~Social~Distancing-σ[SIP]))
-)
-
 {variable_params_all %>% 
-  select(-c(int_length2, int_start2, int_length1, iso_start)) %>% 
-  group_by(fit_date) %>% 
-  filter(log_lik > max(log_lik) -2 ) %>% 
-  mutate_if(is.Date, ~as.numeric(difftime(.x, as.Date("2019-12-31")))) %>%
-  # select(c(everything(), paramset, mif2_iter)) %>% colnames
-  pivot_longer(cols = c(sim_start:beta0est, log_lik:soc_dist_level_sip, log_lik.se)) %>% 
-  # filter(!(name %in% c("log_lik", "log_lik.se"))) %>%
-  filter(name %in% c("beta0est", "E_init", "soc_dist_level_sip")) %>%
-  mutate(name = ifelse(name == "beta0est", "beta0", name)) %>%
-  # filter(name %in% c("E_init", "R0", "Reff")) %>%
-  ggplot(aes(y = value, x = fit_date, 
+    select(-c(int_length2, int_start2, int_length1, iso_start)) %>% 
+    group_by(fit_date) %>% 
+    filter(log_lik > max(log_lik) -2 ) %>% 
+    ungroup %>%
+    mutate_if(is.Date, ~as.numeric(difftime(.x, as.Date("2019-12-31", units = "days")))) %>%
+    # select(c(everything(), paramset, mif2_iter)) %>% colnames
+    pivot_longer(cols = c(sim_start:beta0est, log_lik:soc_dist_level_sip, log_lik.se)) %>% 
+    # filter(!(name %in% c("log_lik", "log_lik.se"))) %>%
+    filter(name %in% c("beta0est", "E_init", "soc_dist_level_sip")) %>%
+    rowwise %>%
+    mutate(plot_name = case_when(
+      name == "beta0est" ~ "Baseline~Transmission~Rate~(beta[0])", 
+      name == "E_init" ~"Initial~Number~Infected~(E[0])",
+      name == "soc_dist_level_sip" ~ "Shelter~In~Place~Impact~(sigma[SIP])"),
+      fit_date = as.Date("2019-12-31") + as.difftime(fit_date, units = "days")
+    ) %>%
+    ggplot(aes(y = value, x = fit_date, 
              group = fit_date)) + 
   geom_violin(lwd = 1) + 
   xlab("Last Date of Data Used in Model Fitting") +
@@ -538,7 +488,9 @@ variable_labels <- c(
     , axis.text.y = element_text(size = 14)
     , axis.title.x = element_text(size = 17)
     , axis.title.y = element_text(size = 17)) +
-  facet_wrap(~name, scales = "free")} # %>% ggsave("figures/fit_param_violins.pdf", plot =., width = 12, height = 4)
+  facet_wrap(~plot_name, scales = "free", 
+             labeller = label_parsed)} %>% 
+  ggsave("figures/fit_param_violins.pdf", plot =., width = 12, height = 4)
 
 # mif replicates traces ----
 fig4_colors <- c("dodgerblue4", "firebrick4", "darkgoldenrod4")
@@ -548,7 +500,11 @@ fig4_colors <- c("dodgerblue4", "firebrick4", "darkgoldenrod4")
   ungroup %>% 
   pivot_longer(cols = loglik:E_init) %>% 
   filter(fit_date %in% diag_dates) %>%
-  filter(name != "loglik") %>%
+  filter(name != "loglik") %>% 
+    mutate(plot_name = case_when(
+      name == "beta0" ~ "Baseline~Transmission~Rate~(beta[0])", 
+      name == "E_init" ~"Initial~Number~Infected~(E[0])",
+      name == "soc_dist_level_sip" ~ "Shelter~In~Place~Impact~(sigma[SIP])")) %>%
   filter(paramset <= 6) %>% 
   ggplot(aes(x = mif_step, y = value,
              color = as.factor(fit_date),
@@ -564,60 +520,45 @@ fig4_colors <- c("dodgerblue4", "firebrick4", "darkgoldenrod4")
     , axis.text.y = element_text(size = 14)
     , axis.title.x = element_text(size = 17)
     , axis.title.y = element_text(size = 17)
-    , strip.text.x = element_text(size = 15)
-    , strip.text.y = element_text(size = 15)) +
-  facet_grid(name ~ paramset, scales = "free_y")} # %>% ggsave("figures/mif_replicate_traces.pdf", plot = ., width = 12, height = 6)
-
-# mif replicate LLs ??? ---- 
-range_length = function(x){
-  max(x) - min(x)
-}
-n_unique = function(x){
-  length(unique(x))
-}
-
-variable_params_all %>% 
-  filter(fit_date %in% diag_dates) %>% 
-  select(-fit_name, - traj_name) %>% 
-  group_by(fit_date, paramset) %>% 
-  mutate_if(is.Date, ~as.numeric(difftime(.x, as.Date("2019-12-31")))) %>%
-  select(-starts_with("int_length"), -iso_start, -int_start2, -log_lik.se,
-         -c(beta0est, R0, Reff, E_init, soc_dist_level_sip)) %>% 
-  select(fit_date, paramset, mif2_iter, log_lik, everything()) %>% 
-  group_by(fit_date, paramset) %>% 
-  summarise_at(vars(log_lik:mu), 
-               list(range = range_length, mean = mean)) %>% 
-  ungroup %>% 
-  {select(., -c(summarise_all(., n_unique) %>%
-                  unlist() %>% 
-                  magrittr::equals(1) %>% 
-                  which %>% 
-                  names))} %>% 
-  filter(fit_date == as.Date("2020-05-13")) %>% 
-  select(-fit_date, -paramset) %>% 
-  filter(log_lik_mean > max(log_lik_mean) - 10) %>% 
-  pivot_longer(sim_start_mean:mu_mean) %>% 
-  ggplot(aes(x = value, y = log_lik_range)) + 
-  geom_point() + 
-  facet_wrap(~name, scales = "free")
+    , strip.text.x = element_text(size = 12)
+    , strip.text.y = element_text(size = 12)) +
+  facet_grid(plot_name ~ paramset, scales = "free_y", 
+             labeller = label_parsed)} %>% 
+  ggsave("figures/mif_replicate_traces.pdf", plot = ., 
+         width = 12, height = 10)
 
 # profiles: parameter values vs LLs ----
 {variable_params_all %>% 
-  group_by(fit_date) %>% 
-  mutate(LL_rel = log_lik - max(log_lik)) %>%
-  filter(LL_rel > -2) %>%
-  select(-c(int_length2, int_start2, int_length1, iso_start)) %>% 
-  mutate_if(is.Date, ~as.numeric(difftime(.x, as.Date("2019-12-31")))) %>% 
-  pivot_longer(cols = c(sim_start:beta0est, R0:soc_dist_level_sip)) %>% 
-  filter(fit_date %in% diag_dates) %>%
-  ggplot(aes(x = value, 
-             # y = asinh(LL_rel), 
-            y = LL_rel,
-             color = as.factor(fit_date))) + 
-  geom_point(alpha = 0.2) + 
-  theme_bw() +
-  facet_wrap(~name, scales = "free")} %>% 
-  ggsave(filename = "figures/param_profiles.pdf", width = 12, height = 8)
+    group_by(fit_date) %>% 
+    mutate(LL_rel = log_lik - max(log_lik)) %>%
+    filter(LL_rel > -2) %>%
+    select(-c(int_length2, int_start2, int_length1, iso_start)) %>% 
+    mutate_if(is.Date, ~as.numeric(difftime(.x, as.Date("2019-12-31")))) %>% 
+    pivot_longer(cols = c(sim_start:beta0est, R0:soc_dist_level_sip)) %>% 
+    filter(fit_date %in% diag_dates) %>%
+    mutate(plot_name = mapvalues(name, 
+                                 from = c("alpha", "beta0est", 
+                                          "Ca", "delta", "E_init",
+                                          "int_start1", "mu", "R0",
+                                          "Reff", "sim_start", 
+                                          "soc_dist_level_sip", 
+                                          "soc_dist_level_wfh"),
+                                 to = c("alpha", "beta[0]",
+                                        "kappa[a]", "delta", "E[0]",
+                                        "WFH~start", "mu", "R[0]", 
+                                        "R[e]", "epidemic~start", 
+                                        "sigma[SIP]", "sigma[WFH]"))) %>%
+    ggplot(aes(x = value, 
+               # y = asinh(LL_rel), 
+               y = LL_rel,
+               color = as.factor(fit_date))) + 
+    geom_point(alpha = 0.3) + 
+    scale_color_manual(values = fig4_colors, 
+                       name = "Fit date") + 
+    guides(color = guide_legend(override.aes = list(alpha = 1) ) ) +
+    ylab("Relative log-likelihood") +
+    facet_wrap(~plot_name, scales = "free_x", labeller = label_parsed)} %>% 
+ggsave(filename = "figures/param_profiles.pdf", width = 14, height = 9)
 
 # LL spread ----
 {variable_params_all %>% 
@@ -635,20 +576,15 @@ variable_params_all %>%
   
 # S over time ----
 # warning: this takes a while to run 
-pct_S_trajs <- data.frame(fit_name = c("output/Santa_Clara_TRUE_FALSE_2020-04-01_2021-02-08_final.Rds",
-                                       "output/Santa_Clara_TRUE_FALSE_2020-05-06_2021-02-05_final.Rds", 
-                                       "output/Santa_Clara_TRUE_FALSE_2020-06-10_2021-02-05_final.Rds"),
-                          traj_name = c("output/Santa_Clara_TRUE_FALSE_2020-04-01_2021-02-08_final_filter_traj.Rds",
-                                        "output/Santa_Clara_TRUE_FALSE_2020-05-06_2021-02-05_final_filter_traj.Rds",
-                                        "output/Santa_Clara_TRUE_FALSE_2020-06-10_2021-02-05_final_filter_traj.Rds")) %>% 
-  mdply(function(traj_name, fit_name){
+pct_S_trajs <- all_fits_trajs %>% 
+  filter(fit_date %in% diag_dates) %>%
+  mdply(function(traj_name, fit_name, fit_date){
     paramset_max <- 100000 # easy way to limit the number of paramsets to speed things up, 
     data_covar <- readRDS(fit_name)[["data_covar"]]
     variable_params <- readRDS(fit_name)[["variable_params"]]
     pop_size <- readRDS(fit_name)[["fixed_params"]] %>% 
       filter(param == "N") %>% pull(value) %>% first
     all_trajs <- readRDS(traj_name)
-    fit_date <- as.Date(strsplit(fit_name, split = "_")[[1]][[5]])
     trajs <- variable_params %>% mutate(rowid = 1:nrow(.)) %>% 
       filter(log_lik > max(log_lik) - 2) %>% 
       arrange(desc(log_lik)) %>% 
@@ -680,12 +616,14 @@ pct_S_trajs <- data.frame(fit_name = c("output/Santa_Clara_TRUE_FALSE_2020-04-01
                             y = mid, group = fit_date),
               adjust = 1) +
   geom_line(alpha = 0.1) +
-  theme_bw() +
+  # theme_bw() +
   # theme(legend.position = "none") +
-  scale_fill_continuous(type = "viridis") +
-  ylab("Percent S remaining") +
+  # scale_fill_continuous(type = "viridis") +
+    scale_x_date(breaks = "1 month", date_labels = "%b") +
+  ylab("Percent susceptible remaining") +
   facet_wrap(~fit_date, ncol = 1)} %>%
-  {ggsave("figures/pct_S.pdf", ., width = 12, height = 7)}
+  {ggsave("figures/pct_S.pdf", ., 
+          width = 12, height = 9)}
 
 # Lightswitch -----
 
@@ -707,17 +645,148 @@ gg2h <- ggplot(intervention_sims %>% filter(scenario == "light", .id == "traj"),
 
 gridExtra::grid.arrange(gg1h, gg2h, ncol = 1)
 
-  
+# counterfactuals  ----
+counterfactual_sims <- readRDS("output/simulations/counterfactual_sims.Rds")
+
+c("grey30", "#D67236", "#0b775e") %>% # some colors to use for all panels
+  {list(
+    {counterfactual_sims[["traj"]] %>% 
+        pivot_longer(D:I_new_sympt) %>% 
+        mutate(plot_col = factor(ifelse(.id == "traj", "observed", scenario), 
+                                 levels = c("observed", "week_delay", "iso")),
+               plot_name = ifelse(name == "D", "Cumulative Deaths", "Daily Cases")) %>%
+        ggplot(aes(x = date, y = value, 
+                   color = plot_col,
+                   group = interaction(paramset, scenario, 
+                                       mif2_iter, traj_set, .id))) + 
+        geom_line(alpha = 0.1) + 
+        geom_vline(xintercept = as.Date("2020-03-17"), 
+                   linetype = "dashed") +
+        scale_y_continuous(name = "", trans = "pseudo_log",
+                           breaks = c(10^{0:4})) +
+        scale_x_date(labels = date_format("%b"), date_breaks = "1 month",
+                     limits = c(as.Date("2020-02-01"), NA)) +
+        scale_colour_manual(values = .,
+                            guide = FALSE,
+                            labels = c(
+                              "Reality",
+                              "Shelter in Place\nStarting One Week Later", 
+                              "Test and Isolate\nStarting on March 17, 2020"
+                            )) +
+        geom_text(data = data.frame(plot_name = c("Cumulative Deaths", "Daily Cases"),
+                                    plot_label = c("a", "b"),
+                                    lab_y = c(175, 2750)),
+                  aes(y = lab_y, label = plot_label),
+                  x = as.Date("2020-02-03"), 
+                  inherit.aes = FALSE,
+                  size = 8, fontface = 2) +
+        facet_wrap(~plot_name, nrow = 2, scales = "free_y",
+                   strip.position = "left") + 
+        theme(strip.placement = "outside",
+              strip.text = element_text(size = 16))},
+    {counterfactual_sims[["total_D"]] %>%
+        pivot_wider(names_from = scenario, values_from = D) %>% 
+        mutate(delay_change = week_delay - observed, 
+               iso_change = iso - observed) %>% 
+        select(ends_with("change")) %>% 
+        pivot_longer(ends_with("change")) %>% 
+        # rbind(data.frame(name = "obs", value = NA)) %>% # add an empty row so "reality"/"obs" gets included in the legend
+        mutate(name = factor(gsub("_change", "", name),
+                             levels = c("obs", "delay", "iso"))) %>%
+        ggplot(aes(x = value, group = name, 
+                   color = name, 
+                   fill = name)) +
+        geom_histogram(aes(y = ..density..,),
+                       position = "identity",
+                       colour = "black", bins = 50,
+                       lwd = 0.2, alpha = 0.5) +
+        geom_density(alpha = 0.6) +
+        scale_fill_manual(name = "Scenario", values = .,
+                          labels = c("Reality\n",
+                                     "Shelter in Place\nStarting One Week Later",
+                                     "Test and Isolate\nStarting on March 17, 2020"),
+                          aesthetics = c("fill", "color"),
+                          drop = FALSE) +
+        theme(legend.title    = element_text(size = 12),
+              legend.position = c(0.67, 0.8),
+              legend.text     = element_text(margin = margin(b = 10, unit = "pt"), 
+                                             size = 10)) + 
+        ylab("Density") +
+        xlab("Difference in Total Deaths") +
+        ggtitle("Estimated Mortality as of April 22, 2020") +
+        annotate("text", x = -90, y = 0.032, label = "c",
+                 size = 8, fontface = 2) +
+        geom_vline(xintercept = 0)}
+  )} %>% 
+  arrangeGrob(grobs = ., ncol = 2) %>%
+  ggsave(filename = "figures/counterfactuals.pdf", 
+         width = 10, height = 6,
+         units = "in")
+
+# lives saved by existing sip 
+counterfactual_sims[["total_D"]] %>%
+  pivot_wider(names_from = scenario, values_from = D) %>% 
+  mutate(delay_change = week_delay - observed, 
+         iso_change = iso - observed) %>% 
+  select(ends_with("change")) %>% 
+  summarise_all(~list(quantile(.x, probs = c(0.025, 0.5, 0.975)))) %>% 
+  unnest(cols = everything()) %>% mutate(q = names(delay_change))
+
+# infected isolation sensetivity ----
+inf_iso_sims <- readRDS("output/simulations/inf_iso_sims.Rds")
+
+inf_iso_sims %>% 
+  group_by(inf_iso_level, background_soc_dist, scenario) %>% 
+  summarise_at(vars(D), ~list(quantile(.x, probs = c(0.025, 0.05,  0.5, 0.95, 0.975)))) %>% 
+  unnest_wider(D, names_sep = "_") %>% 
+  rename_at(vars(starts_with("D_")), function(x) gsub("%", "", x, fixed = T)) %>% 
+  ungroup %>%
+  {ggplot(data = filter(., scenario != "maintain"),
+          aes(x = 1 - background_soc_dist, 
+              y = D_50, 
+              group = 1 - inf_iso_level, 
+              color = as.factor(1 - inf_iso_level))) + 
+      geom_hline(yintercept = filter(., scenario == "maintain") %>% 
+                   select(starts_with("D_")) %>% 
+                   unlist(),
+                 color = "grey", 
+                 linetype = c("dotted", "dashed", "solid", "dashed", "dotted")) +
+      geom_point(position = position_dodge(width = 0.05), size = 2) +
+      geom_linerange(aes(ymin = D_2.5, ymax = D_97.5), 
+                     position = position_dodge(width = 0.05)) + 
+      geom_linerange(aes(ymin = D_5, ymax = D_95), 
+                     size = 1.2,
+                     position = position_dodge(width = 0.05)) + 
+      scale_y_continuous(trans = "pseudo_log", 
+                         breaks = c(250, 500, 1000, 2500, 5000, 10000),
+                         name = "Total Deaths") + 
+      scale_x_continuous(labels = scales::percent_format(accuracy = 1),
+                         name = "Background Social Distancing Effectiveness") +
+      scale_color_manual(values = c("lightblue", "royalblue3", "black")
+                         , labels = function(x){scales::percent(as.numeric(x))}
+                         , name   = "Test-and-Isolate\nEffectiveness") +
+      theme(legend.text = element_text(size = 10), 
+            legend.title = element_text(size = 12),
+            legend.position = c(0.85, 0.7))} %>% 
+  ggsave(filename = "figures/inf_iso_sensitivity.pdf", 
+         width = 6, height = 5,
+         units = "in")
+
+
 # Interventions -----
 
-intervention_sims <- readRDS("figure_rds/interventions.Rds")
-intervention_sims <- intervention_sims %>% mutate(total_inf = I + H)
-intervention_sims$scenario <- factor(intervention_sims$scenario, levels = c("lift", "maintain", "isolate"))
-fig4_colors       <- c("firebrick4", "dodgerblue4", "darkgoldenrod4")
-deaths            <- deaths %>% 
-  mutate(deaths_cum = deaths) %>% 
-  mutate(deaths = deaths_cum - lag(deaths_cum)) %>% 
-  replace_na(list(deaths = 0))
+intervention_sims <- #readRDS("figure_rds/interventions.Rds") 
+  readRDS("output/simulations/intervention_sims.Rds")[["traj"]] %>% 
+  filter(date >= as.Date("2020-02-01")) %>% 
+  filter(scenario != "light")
+# intervention_sims <- intervention_sims %>% mutate(total_inf = I + H)
+intervention_sims$scenario <- factor(intervention_sims$scenario, 
+                                     levels = c("lift", "maintain", "isolate"))
+fig4_colors       <- c("firebrick4", "darkgoldenrod4", "dodgerblue4")
+# deaths            <- deaths %>% 
+#   mutate(deaths_cum = deaths) %>% 
+#   mutate(deaths = deaths_cum - lag(deaths_cum)) %>% 
+#   replace_na(list(deaths = 0))
 
 ggI1 <- ggplot(intervention_sims) + 
   geom_line(data = (intervention_sims %>% filter(.id != "traj"))
@@ -741,10 +810,14 @@ ggI1 <- ggplot(intervention_sims) +
   , "Test and Isolate"
     )) +
   guides(color = guide_legend(override.aes = list(alpha = 1, lwd = 2))) +
-  ylab("Cumulative Deaths") +
+  ylab("\nCumulative Deaths") +
   xlab("") +
-  geom_point(data = deaths, aes(date, deaths_cum), lwd = 2, color = "black") +
-  scale_y_log10(breaks = c(1, 10, 100, 1000, 5000), labels = c(1, 10, 100, 1000, 5000)) +
+  geom_point(data = epi_df %>% 
+               filter(date <= as.Date("2020-04-22")), 
+             aes(date, deaths_cum), lwd = 2, color = "black") +
+  geom_vline(xintercept = as.Date("2020-06-01"), linetype = "dashed", color = "grey") +
+  scale_y_log10(breaks = c(1, 10, 100, 1000, 5000), 
+                labels = paste0(" ", c(1, 10, 100, 1000, 5000))) +
   theme(legend.title = element_text(size = 16)
         , axis.text.x = element_blank()
         , legend.position = c(0.8, 0.3)
@@ -758,15 +831,16 @@ ggI1 <- ggplot(intervention_sims) +
 ggI2 <- ggplot(intervention_sims) + 
   geom_line(data = (intervention_sims %>% filter(.id != "traj"))
             , aes(x        = date
-                  , y      = total_inf
+                  , y      = I_new_sympt #total_inf
                   , group  = interaction(.id, scenario, traj_set)
                   , colour = scenario
             ), alpha = 0.05) + 
   geom_line(data = (intervention_sims %>% filter(.id == "traj"))
             , aes(x       = date
-                  , y     = total_inf
+                  , y     = I_new_sympt #total_inf
                   , group = interaction(traj_set, scenario)
             ), color = "grey30", alpha = 0.1) + 
+  geom_vline(xintercept = as.Date("2020-06-01"), linetype = "dashed", color = "grey") +
   scale_x_date(labels = date_format("%b"), date_breaks = "3 month") +
   scale_colour_manual(
     values = fig4_colors
@@ -778,16 +852,35 @@ ggI2 <- ggplot(intervention_sims) +
   theme(axis.text.x = element_text(angle = 0, hjust = 0.5, size = 12)
   , legend.title = element_text(size = 12)
   , plot.title = element_text(size = 12)) +
-  ylab("Concurrent Infections") +
+  ylab("New Symptomatic\nInfections") +
   xlab("Date") +
-  scale_y_log10(breaks = c(1, 10, 100, 1000, 10000, 100000), labels = c(1, 10, 100, 1000, 10000, 1E5)) +
+  scale_y_log10(breaks = c(1, 10, 100, 1000, 10000, 100000), 
+                labels = c(1, 10, 100, 1000, 10000, 1E5)) +
   theme(legend.title = element_text(size = 12)
         , legend.text = element_text(margin = margin(b = 10, unit = "pt"), size = 10)
         , legend.position = c(0.8, 0.3)) +
   guides(colour = FALSE) +
-  annotate("text", x = as.Date("2020-02-01"), y = 200000, label = "b",
+  annotate("text", x = as.Date("2020-02-01"), y = 10000, label = "b",
            size = 8, fontface = 2)
 
-gridExtra::grid.arrange(ggI1, ggI2, ncol = 1)
+gridExtra::grid.arrange(ggI1, ggI2, ncol = 1) %>% 
+  ggsave(filename = "figures/interventions2.pdf", width = 12, height = 8)
 
+# numbers for the manuscript ----
+variable_params_all %>% 
+  group_by(fit_date) %>% 
+  filter(log_lik > max(log_lik) - 2) %>% 
+  summarise_at(vars("Reff"), ~list(quantile(.x, probs = c(0, 0.025, 0.5, 0.975, 1)))) %>% 
+  unnest_wider(Reff) %>% View
+
+readRDS("output/simulations/intervention_sims.Rds")[["summary"]] %>% 
+  mutate_if(is.Date, function(x){as.numeric(difftime(x, as.Date("2019-12-31"), units = "days"))}) %>%
+  group_by(scenario) %>% 
+  summarise_at(vars(D_max, inf_max, inf_max_date), 
+               ~list(quantile(.x, probs = c(0.025, 0.5, 0.975)))) %>% 
+  unnest(D_max:inf_max_date) %>% 
+  mutate(q = names(D_max)) %>% 
+  pivot_wider(names_from = q, values_from = D_max:inf_max_date) %>% 
+  mutate_at(vars(contains("date")), function(x){ as.Date("2019-12-31") + as.difftime(x, units = "days")}) %>% 
+  View
   
