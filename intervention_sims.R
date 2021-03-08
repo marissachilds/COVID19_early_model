@@ -59,7 +59,7 @@ intervention_traj <- ldply(NPI_intervention_params, function(int_params){
                    traj.file = "output/filtering_trajectories/Santa_Clara_TRUE_FALSE_2020-04-22_2021-02-05_final_filter_traj.Rds",
                    nparams        = 1, 
                    last_date_only = FALSE)) %>%
-    select(paramset, mif2_iter, traj_set, .id, D, H, H_new, I_new_sympt, day, date) %>% 
+    select(paramset, mif2_iter, traj_set, .id, D, H, H_new, I, I_new_sympt, day, date) %>% 
     mutate(scenario = int_params[["scenario_name"]]) %>%
     return
 })
@@ -80,6 +80,8 @@ intervention_summary <- ldply(NPI_intervention_params, function(int_params){
                        group_by(paramset, mif2_iter, traj_set, .id) %>%
                        summarise(D_max = max(D), 
                                  D_new_max = max(D_new), 
+                                 H_max = max(H),
+                                 H_new_max = max(H_new),
                                  inf_max = max(inf_simul), 
                                  inf_max_date = date[which.max(inf_simul)],
                                  D_new_max_date = date[which.max(D_new)],
