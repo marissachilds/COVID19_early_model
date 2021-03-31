@@ -16,7 +16,7 @@ args<-commandArgs(TRUE)
 
 n.particles <- 5000
 n.filter.traj <- 100
-rds.name <- paste0("output/", args[1])
+rds.name <- paste0("output/fits/", args[1])
 usable.cores <- 1
 print(rds.name)
 
@@ -74,6 +74,7 @@ traj.all <- foreach(
 saveRDS(object = traj.all,
         file = strsplit(rds.name, ".", fixed = TRUE)[[1]] %>% 
           {paste0(c(.[-length(.)], "_filter_traj.", .[length(.)]), 
-                  collapse = "")})
+                  collapse = "")} %>% 
+          {gsub("output/", "output/filtering_trajectories/", ., fixed = TRUE)})
 
 

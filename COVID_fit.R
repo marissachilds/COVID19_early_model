@@ -559,7 +559,7 @@ saveRDS(
                             , paramnames = param_names
                             , statenames = state_names)
    ), paste(
-     paste("output/"
+     paste("output/fits/"
            , paste(gsub(" ", "_", focal.county), fit_to_sip, more.params.uncer, last_date, Sys.Date(), "final", sep = "_")
          , sep = "")
      , "Rds", sep = "."))

@@ -64,4 +64,4 @@ inf_iso_sims %<>% rbind(inf_iso_sims_comp %>%
                           mutate(inf_iso_level = NA, 
                                  background_soc_dist = NA))
 
-saveRDS(inf_iso_sims, "output/inf_iso_sims_D.Rds")
+saveRDS(inf_iso_sims, "output/simulations/inf_iso_sims_D.Rds")

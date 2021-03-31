@@ -92,4 +92,4 @@ intervention_summary <- ldply(NPI_intervention_params[-4], function(int_params){
 
 saveRDS(list(summary = intervention_summary, 
              traj = intervention_traj),
-        "output/intervention_sims.Rds")
+        "output/simulations/intervention_sims.Rds")
