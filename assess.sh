@@ -19,7 +19,7 @@ echo "#!/bin/bash
 
 ml R/4.0.2
 
-Rscript /home/users/mharris9/COVID19_early_model-main/sims-model_assess.R "$a" " > $job_file
+Rscript ./sims-model_assess.R "$a" " > $job_file
 
     sbatch $job_file
 
