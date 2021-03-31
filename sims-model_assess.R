@@ -63,4 +63,4 @@ model_assess_sims <- COVID_simulate( filtering.traj   = TRUE
                mutate(fit_date = fit_date) 
  
 
-saveRDS(model_assess_sims, paste0("output/", fit_date, "_", Sys.Date(), "assess.Rds"))
+saveRDS(model_assess_sims, paste0("output/simulations/", fit_date, "_", Sys.Date(), "assess.Rds"))
