@@ -7,7 +7,6 @@ args<-commandArgs(TRUE)
 set.seed(879897)
 fitting           <- TRUE          ## Small change in pomp objects if fitting or simulating
 last_date         <- as.Date(args[1])  ## Last possible date to consider for this model
-more.params.uncer <- FALSE    ## Fit with more (FALSE) or fewer (TRUE) point estimates for a number of parameters
 fit.E0            <- TRUE     ## Also fit initial # that starts the epidemic?
 ## more.params.uncer = FALSE is more supported, uses parameter ranges with more research and reacts to choice of focal.county if possible
 ## !!!!! For FALSE update parameters in location_params.csv
@@ -68,11 +67,7 @@ deaths    <- deaths %>% mutate(date = as.Date(date)) %>% filter(county == focal.
 last_date <- min(as.Date(last_date), max(deaths$date))
 deaths    <- deaths %>% filter(date <= as.Date(last_date)) 
     
-if (!more.params.uncer) {
 params <- read.csv("params.csv", stringsAsFactors = FALSE)
-} else {
-params <- read.csv("params_wide.csv", stringsAsFactors = FALSE) 
-}
 params <- params %>% mutate(Value = sapply(est, function(x) eval(parse(text = x))))
 
 fixed_params        <- params$Value
@@ -87,11 +82,7 @@ fixed_params        <- c(fixed_params, N = location_params[location_params$Param
 ## latest possible assumed epidemic start date
 latest.sim_start <- as.Date(location_params[location_params$Parameter == "sim_start", ]$upr, origin = "2019-12-31")
 
-if (more.params.uncer) {
-source("variable_params_more.R")
-} else {
 source("variable_params_less.R")
-}
 
 ## Repeat each entry for the number of repeat mif2
 variable_params <- variable_params[rep(seq_len(nrow(variable_params)), each = n.mif_runs), ] %>% 
