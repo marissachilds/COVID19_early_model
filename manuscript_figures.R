@@ -366,6 +366,95 @@ ggpubr::ggarrange(cases_traj_fig,  nrow = 1) %>%
   ggsave(filename = "figures/cases_assess.pdf", width = 16, height = 7*.6)
 
 
+# figure 6: intervention scenarios ---- 
+
+intervention_sims <- readRDS("output/simulations/intervention_sims.Rds")[["traj"]] %>% 
+  filter(date >= as.Date("2020-02-01")) %>% 
+  filter(scenario != "light")
+
+intervention_sims$scenario <- factor(intervention_sims$scenario, 
+                                     levels = c("lift", "maintain", "isolate"))
+fig4_colors       <- c("firebrick4", "darkgoldenrod4", "dodgerblue4")
+
+ggI1 <- ggplot(intervention_sims) + 
+  geom_line(data = (intervention_sims %>% filter(.id != "traj"))
+            , aes(x        = date
+                  , y      = D
+                  , group  = interaction(.id, scenario, traj_set)
+                  , colour = scenario
+            ), alpha = 0.05) + 
+  geom_line(data = (intervention_sims %>% filter(.id == "traj"))
+            , aes(x       = date
+                  , y     = D
+                  , group = interaction(traj_set, scenario)
+            ), color = "grey30", alpha = 0.1) + 
+  scale_x_date(labels = date_format("%b"), date_breaks = "1 month") +
+  scale_colour_manual(
+    name = "Intervention"
+    , values = fig4_colors
+    , labels = c(
+      "Lift"
+      , "Maintain"
+      , "Test and Isolate"
+    )) +
+  guides(color = guide_legend(override.aes = list(alpha = 1, lwd = 2))) +
+  ylab("\nCumulative Deaths") +
+  xlab("") +
+  geom_point(data = epi_df %>% 
+               filter(date <= as.Date("2020-04-22")), 
+             aes(date, deaths_cum), lwd = 2, color = "black") +
+  geom_vline(xintercept = as.Date("2020-06-01"), linetype = "dashed", color = "grey") +
+  scale_y_log10(breaks = c(1, 10, 100, 1000, 5000), 
+                labels = paste0(" ", c(1, 10, 100, 1000, 5000))) +
+  theme(legend.title = element_text(size = 16)
+        , axis.text.x = element_blank()
+        , legend.position = c(0.8, 0.3)
+        , legend.key.size = unit(.55, "cm")
+        , legend.text = element_text(size = 14) 
+        , plot.title = element_text(size = 12)
+        , axis.ticks.x = element_blank()) +
+  annotate("text", x = as.Date("2020-02-01"), y = 3000, label = "a",
+           size = 8, fontface = 2)
+
+ggI2 <- ggplot(intervention_sims) + 
+  geom_line(data = (intervention_sims %>% filter(.id != "traj"))
+            , aes(x        = date
+                  , y      = I_new_sympt #total_inf
+                  , group  = interaction(.id, scenario, traj_set)
+                  , colour = scenario
+            ), alpha = 0.05) + 
+  geom_line(data = (intervention_sims %>% filter(.id == "traj"))
+            , aes(x       = date
+                  , y     = I_new_sympt #total_inf
+                  , group = interaction(traj_set, scenario)
+            ), color = "grey30", alpha = 0.1) + 
+  geom_vline(xintercept = as.Date("2020-06-01"), linetype = "dashed", color = "grey") +
+  scale_x_date(labels = date_format("%b"), date_breaks = "3 month") +
+  scale_colour_manual(
+    values = fig4_colors
+    , labels = c(
+      "Lift"
+      , "Maintain"
+      , "Test and Isolate"
+    )) +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.5, size = 12)
+        , legend.title = element_text(size = 12)
+        , plot.title = element_text(size = 12)) +
+  ylab("New Symptomatic\nInfections") +
+  xlab("Date") +
+  scale_y_log10(breaks = c(1, 10, 100, 1000, 10000, 100000), 
+                labels = c(1, 10, 100, 1000, 10000, 1E5)) +
+  theme(legend.title = element_text(size = 12)
+        , legend.text = element_text(margin = margin(b = 10, unit = "pt"), size = 10)
+        , legend.position = c(0.8, 0.3)) +
+  guides(colour = FALSE) +
+  annotate("text", x = as.Date("2020-02-01"), y = 10000, label = "b",
+           size = 8, fontface = 2)
+
+gridExtra::grid.arrange(ggI1, ggI2, ncol = 1) %>% 
+  ggsave(filename = "figures/interventions2.pdf", width = 12, height = 8)
+
+
 # SUPPLEMENT FIGURES ----
 
 # model assessment trajectories for deaths for all fit dates ----
@@ -577,22 +666,6 @@ ggsave(filename = "figures/param_profiles.pdf", width = 14, height = 9)
     theme_bw()} %>% 
   ggsave(filename = "figures/LL_spread_trunc.pdf", 
          plot = ., width = 7.5, height = 5)
-  
-# beta0 and sigma_sip 
-variable_params_all %>% 
-  group_by(fit_date) %>% 
-  mutate(LL_rel = log_lik - max(log_lik)) %>% 
-  filter(LL_rel > -2) %>%
-  filter(fit_date %in% diag_dates) %>% 
-  ggplot(aes(x = beta0est, y = soc_dist_level_sip,
-              color = as.factor(fit_date))) +
-  geom_point(alpha = 0.3) + 
-  # scale_y_continuous(trans = "log") + 
-  # scale_x_continuous(trans = "log") +
-  xlab("Log-likelihood") + 
-  ylab("Standard error among log-likelihood estimates") + 
-  labs(color = "Fit date") + 
-  theme_bw()
 
 # S over time ----
 # warning: this takes a while to run 
@@ -805,101 +878,7 @@ inf_iso_sims %>%
          width = 6, height = 5,
          units = "in")
 
-
-# Interventions -----
-
-intervention_sims <- #readRDS("figure_rds/interventions.Rds") 
-  readRDS("output/simulations/intervention_sims.Rds")[["traj"]] %>% 
-  filter(date >= as.Date("2020-02-01")) %>% 
-  filter(scenario != "light")
-# intervention_sims <- intervention_sims %>% mutate(total_inf = I + H)
-intervention_sims$scenario <- factor(intervention_sims$scenario, 
-                                     levels = c("lift", "maintain", "isolate"))
-fig4_colors       <- c("firebrick4", "darkgoldenrod4", "dodgerblue4")
-# deaths            <- deaths %>% 
-#   mutate(deaths_cum = deaths) %>% 
-#   mutate(deaths = deaths_cum - lag(deaths_cum)) %>% 
-#   replace_na(list(deaths = 0))
-
-ggI1 <- ggplot(intervention_sims) + 
-  geom_line(data = (intervention_sims %>% filter(.id != "traj"))
-            , aes(x        = date
-                  , y      = D
-                  , group  = interaction(.id, scenario, traj_set)
-                  , colour = scenario
-            ), alpha = 0.05) + 
-  geom_line(data = (intervention_sims %>% filter(.id == "traj"))
-            , aes(x       = date
-                  , y     = D
-                  , group = interaction(traj_set, scenario)
-            ), color = "grey30", alpha = 0.1) + 
-  scale_x_date(labels = date_format("%b"), date_breaks = "1 month") +
-  scale_colour_manual(
-    name = "Intervention"
-  , values = fig4_colors
-  , labels = c(
-    "Lift"
-  , "Maintain"
-  , "Test and Isolate"
-    )) +
-  guides(color = guide_legend(override.aes = list(alpha = 1, lwd = 2))) +
-  ylab("\nCumulative Deaths") +
-  xlab("") +
-  geom_point(data = epi_df %>% 
-               filter(date <= as.Date("2020-04-22")), 
-             aes(date, deaths_cum), lwd = 2, color = "black") +
-  geom_vline(xintercept = as.Date("2020-06-01"), linetype = "dashed", color = "grey") +
-  scale_y_log10(breaks = c(1, 10, 100, 1000, 5000), 
-                labels = paste0(" ", c(1, 10, 100, 1000, 5000))) +
-  theme(legend.title = element_text(size = 16)
-        , axis.text.x = element_blank()
-        , legend.position = c(0.8, 0.3)
-        , legend.key.size = unit(.55, "cm")
-        , legend.text = element_text(size = 14) 
-        , plot.title = element_text(size = 12)
-        , axis.ticks.x = element_blank()) +
-  annotate("text", x = as.Date("2020-02-01"), y = 3000, label = "a",
-           size = 8, fontface = 2)
-
-ggI2 <- ggplot(intervention_sims) + 
-  geom_line(data = (intervention_sims %>% filter(.id != "traj"))
-            , aes(x        = date
-                  , y      = I_new_sympt #total_inf
-                  , group  = interaction(.id, scenario, traj_set)
-                  , colour = scenario
-            ), alpha = 0.05) + 
-  geom_line(data = (intervention_sims %>% filter(.id == "traj"))
-            , aes(x       = date
-                  , y     = I_new_sympt #total_inf
-                  , group = interaction(traj_set, scenario)
-            ), color = "grey30", alpha = 0.1) + 
-  geom_vline(xintercept = as.Date("2020-06-01"), linetype = "dashed", color = "grey") +
-  scale_x_date(labels = date_format("%b"), date_breaks = "3 month") +
-  scale_colour_manual(
-    values = fig4_colors
-  , labels = c(
-    "Lift"
-  , "Maintain"
-  , "Test and Isolate"
-    )) +
-  theme(axis.text.x = element_text(angle = 0, hjust = 0.5, size = 12)
-  , legend.title = element_text(size = 12)
-  , plot.title = element_text(size = 12)) +
-  ylab("New Symptomatic\nInfections") +
-  xlab("Date") +
-  scale_y_log10(breaks = c(1, 10, 100, 1000, 10000, 100000), 
-                labels = c(1, 10, 100, 1000, 10000, 1E5)) +
-  theme(legend.title = element_text(size = 12)
-        , legend.text = element_text(margin = margin(b = 10, unit = "pt"), size = 10)
-        , legend.position = c(0.8, 0.3)) +
-  guides(colour = FALSE) +
-  annotate("text", x = as.Date("2020-02-01"), y = 10000, label = "b",
-           size = 8, fontface = 2)
-
-gridExtra::grid.arrange(ggI1, ggI2, ncol = 1) %>% 
-  ggsave(filename = "figures/interventions2.pdf", width = 12, height = 8)
-
-# numbers for the manuscript ----
+# some numbers in the manuscript ----
 variable_params_all %>% 
   group_by(fit_date) %>% 
   filter(log_lik > max(log_lik) - 2) %>% 
