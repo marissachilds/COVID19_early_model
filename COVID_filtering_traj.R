@@ -1,24 +1,13 @@
 # Script to draw from the smoothing distribution from existing .Rds files with model fits
 # Output is saved filtering trajectories
-
-# required parameters, only set them if the file isn't being sourced
-if(sys.nframe() == 0L){
-  n.particles = 1000
-  n.filter.traj = 10
-  rds.name = "output/Santa_Clara_TRUE_FALSE_2020-04-01_2021-02-08_final.Rds"
-  seed.val = 100001
-}
-
 needed_packages <- c(
-    "pomp"
+  "pomp"
   , "plyr"
   , "dplyr"
   , "magrittr"
   , "tidyr"
   , "foreach"
   , "data.table"
-  , "doParallel"
-  , "tibble"
   , "doParallel")
 
 lapply(needed_packages, require, character.only = TRUE)
@@ -57,7 +46,7 @@ traj.all <- foreach(
     full_params = c(fixed_params %>% 
                     filter(paramset == variable_params[[i, "paramset"]] & 
                              mif2_iter == variable_params[[i, "mif2_iter"]]) %>% 
-                      select(param, value) %>% tibble::deframe(),
+	           select(param, value) %>% tibble::deframe(),
                   variable_params[i,] %>% rename(beta0 = beta0est) %>% 
                     select(beta0, Ca, alpha, mu, delta, 
                            E_init, soc_dist_level_sip) %>% unlist)
@@ -79,8 +68,12 @@ traj.all <- foreach(
   return(trajs[,1,,])
 }
 
+
+
 # save the filtering trajectories as the rds file name with _filter_traj appended to it
 saveRDS(object = traj.all,
         file = strsplit(rds.name, ".", fixed = TRUE)[[1]] %>% 
           {paste0(c(.[-length(.)], "_filter_traj.", .[length(.)]), 
                   collapse = "")})
+
+
