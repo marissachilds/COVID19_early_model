@@ -7,3 +7,5 @@ Workflow
 3. Run assess.sh which uses sim-args.csv and sims-model_assess.R to run simulations for assessing model performace and saves them in output/simulations. 
 4.  Run counterfactual_sims.R, inf_iso_sims.R, intervention_sims.R which each run simulations and save them in output/simulations.
 5. Run manuscript_figures.R which creates figures from saved output and saves the figures in the figures directory.
+
+Saved output from steps 1 - 4 is available at https://drive.google.com/drive/folders/1mHu97K_FlPtcZVqlUPX5CKrrgKazT1N1?usp=sharing
