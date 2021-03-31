@@ -14,6 +14,10 @@ needed_packages <- c(
   , "stringr")
 
 lapply(needed_packages, library, character.only = TRUE)
+source("ggplot_theme.R")
+
+# dates to use for supplemental diagnostic plots
+diag_dates <- as.Date(c("2020-04-01", "2020-05-13", "2020-06-24"))
 
 # colors 
 # fig2_colors = c("#B40F20", "#E58601", "#046C9A", "grey30") # old colors
@@ -25,7 +29,6 @@ fig2_colors = c("firebrick4", "darkgoldenrod4", "grey30")
 #                 "#D67236",
 #                 "#0b775e")
 
-source("ggplot_theme.R")
 
 # read deaths data used for fitting 
 epi_df <- fread("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv") %>% 
@@ -38,7 +41,6 @@ epi_df <- fread("https://raw.githubusercontent.com/nytimes/covid-19-data/master/
   replace_na(list(cases = 0)) %>%
   mutate(raw_deaths = deaths, raw_cases = cases) #%>%
 
-# figure 3: reproduction numbers ----
 all_fits_trajs = data.frame(
   fit_name = c("output/fits/Santa_Clara_TRUE_FALSE_2020-04-01_2021-02-08_final.Rds",
                "output/fits/Santa_Clara_TRUE_FALSE_2020-04-08_2021-02-05_final.Rds",
@@ -57,6 +59,8 @@ all_fits_trajs = data.frame(
   mutate(fit_date = as.Date(fit_date),
          traj_name = gsub("fits", "filtering_trajectories", gsub(".Rds", "_filter_traj.Rds", fit_name)))
 
+
+# figure 3: reproduction numbers ----
 variable_params_all <- all_fits_trajs %>% 
   mdply(function(fit_name, fit_date, traj_name){
     variable_params <- readRDS(fit_name)[["variable_params"]] 
@@ -422,9 +426,6 @@ ggsave(supp_deaths_traj_fig,
        filename = "supp_deaths_traj.pdf", 
        width = 12, height = 9)
 
-# dates to use for supplemental diagnostic plots
-diag_dates <- as.Date(c("2020-04-01", "2020-05-13", "2020-06-24"))
-
 # grab the mif traces 
 mif_traces_all <- mdply(all_fits_trajs, function(fit_name, fit_date, traj_name){
   readRDS(fit_name)[["mif_traces"]] %>% 
@@ -562,18 +563,37 @@ ggsave(filename = "figures/param_profiles.pdf", width = 14, height = 9)
 
 # LL spread ----
 {variable_params_all %>% 
-  group_by(fit_date) %>% 
+    group_by(fit_date) %>% 
     mutate(LL_rel = log_lik - max(log_lik)) %>% 
     filter(LL_rel > -2) %>%
-  ggplot(aes( x = -log_lik, y = log_lik.se,
-              color = fit_date)) +
-  geom_point() + 
-  scale_y_continuous(trans = "log") + 
-  scale_x_continuous(trans = "log") +
-  theme_bw()} %>% 
+    ggplot(aes( x = log_lik, y = log_lik.se,
+                color = fit_date)) +
+    geom_point(alpha = 0.3) + 
+    # scale_y_continuous(trans = "log") + 
+    # scale_x_continuous(trans = "log") +
+    xlab("Log-likelihood") + 
+    ylab("Standard error among log-likelihood estimates") + 
+    labs(color = "Fit date") + 
+    theme_bw()} %>% 
   ggsave(filename = "figures/LL_spread_trunc.pdf", 
-         plot = ., width = 10, height = 8)
+         plot = ., width = 7.5, height = 5)
   
+# beta0 and sigma_sip 
+variable_params_all %>% 
+  group_by(fit_date) %>% 
+  mutate(LL_rel = log_lik - max(log_lik)) %>% 
+  filter(LL_rel > -2) %>%
+  filter(fit_date %in% diag_dates) %>% 
+  ggplot(aes(x = beta0est, y = soc_dist_level_sip,
+              color = as.factor(fit_date))) +
+  geom_point(alpha = 0.3) + 
+  # scale_y_continuous(trans = "log") + 
+  # scale_x_continuous(trans = "log") +
+  xlab("Log-likelihood") + 
+  ylab("Standard error among log-likelihood estimates") + 
+  labs(color = "Fit date") + 
+  theme_bw()
+
 # S over time ----
 # warning: this takes a while to run 
 pct_S_trajs <- all_fits_trajs %>% 
@@ -605,23 +625,32 @@ pct_S_trajs <- all_fits_trajs %>%
   })
  
 {pct_S_trajs %>% 
-  group_by(fit_date) %>% 
-  mutate(LL_rel = log_lik - max(log_lik)) %>%
-  ggplot(aes(x = date, y = mid, ymin = lwr, ymax = upr, 
-             group = interaction(fit_date, paramset))) + 
-  geom_ribbon(alpha = 0.2) +
-  geom_violin(data = pct_S_trajs %>% 
-                filter(date == fit_date),
-              mapping = aes(date + as.difftime(18, units = "days"), 
-                            y = mid, group = fit_date),
-              adjust = 1) +
-  geom_line(alpha = 0.1) +
-  # theme_bw() +
-  # theme(legend.position = "none") +
-  # scale_fill_continuous(type = "viridis") +
+    group_by(fit_date) %>% 
+    mutate(LL_rel = log_lik - max(log_lik)) %>%
+    ggplot(aes(x = date, y = mid, ymin = lwr, ymax = upr, 
+               group = interaction(fit_date, paramset))) + 
+    geom_ribbon(alpha = 0.2) +
+    geom_violin(data = pct_S_trajs %>% 
+                  filter(date == fit_date),
+                mapping = aes(x = date + as.difftime(19, units = "days"), 
+                              y = mid, group = fit_date),
+                # draw_quantiles = 0.5,
+                adjust = 1) +
+    geom_point(data = pct_S_trajs %>% 
+                 filter(date == fit_date) %>% 
+                 group_by(fit_date) %>% 
+                 summarise(med = median(mid)),
+               mapping = aes(x = fit_date + as.difftime(19, units = "days"), 
+                             y = med, group = fit_date),
+               inherit.aes = FALSE,
+               color = muted("red", l = 40, c = 80)) +
+    geom_line(alpha = 0.1) +
+    # theme_bw() +
+    # theme(legend.position = "none") +
+    # scale_fill_continuous(type = "viridis") +
     scale_x_date(breaks = "1 month", date_labels = "%b") +
   ylab("Percent susceptible remaining") +
-  facet_wrap(~fit_date, ncol = 1)} %>%
+  facet_wrap(~fit_date, ncol = 1, labeller = function(x) format(x, '%B %e, %Y'))} %>%
   {ggsave("figures/pct_S.pdf", ., 
           width = 12, height = 9)}
 
@@ -660,6 +689,10 @@ c("grey30", "#D67236", "#0b775e") %>% # some colors to use for all panels
                    group = interaction(paramset, scenario, 
                                        mif2_iter, traj_set, .id))) + 
         geom_line(alpha = 0.1) + 
+        geom_point(data = epi_df %>% mutate(plot_name = "Cumulative Deaths") %>% 
+                     filter(date <= as.Date("2020-04-22")), 
+                   aes(x = date, y = deaths_cum), 
+                   inherit.aes = FALSE) +
         geom_vline(xintercept = as.Date("2020-03-17"), 
                    linetype = "dashed") +
         scale_y_continuous(name = "", trans = "pseudo_log",
@@ -718,7 +751,7 @@ c("grey30", "#D67236", "#0b775e") %>% # some colors to use for all panels
                  size = 8, fontface = 2) +
         geom_vline(xintercept = 0)}
   )} %>% 
-  arrangeGrob(grobs = ., ncol = 2) %>%
+  arrangeGrob(grobs = ., ncol = 2) %>% 
   ggsave(filename = "figures/counterfactuals.pdf", 
          width = 10, height = 6,
          units = "in")
@@ -873,14 +906,17 @@ variable_params_all %>%
   summarise_at(vars("Reff"), ~list(quantile(.x, probs = c(0, 0.025, 0.5, 0.975, 1)))) %>% 
   unnest_wider(Reff) %>% View
 
-readRDS("output/simulations/intervention_sims.Rds")[["summary"]] %>% 
+test <- readRDS("./output/simulations/intervention_sims.Rds")[["summary"]] %>% 
   mutate_if(is.Date, function(x){as.numeric(difftime(x, as.Date("2019-12-31"), units = "days"))}) %>%
   group_by(scenario) %>% 
-  summarise_at(vars(D_max, inf_max, inf_max_date), 
+  summarise_at(vars(D_max, inf_max, inf_max_date, I_new_sympt_max, I_new_sympt_max_date, H_max), 
                ~list(quantile(.x, probs = c(0.025, 0.5, 0.975)))) %>% 
-  unnest(D_max:inf_max_date) %>% 
+  unnest(D_max:H_max) %>% 
   mutate(q = names(D_max)) %>% 
-  pivot_wider(names_from = q, values_from = D_max:inf_max_date) %>% 
-  mutate_at(vars(contains("date")), function(x){ as.Date("2019-12-31") + as.difftime(x, units = "days")}) %>% 
-  View
+  pivot_wider(names_from = q, values_from = D_max:H_max) %>% 
+  mutate_at(vars(contains("date")), function(x){ as.Date("2019-12-31") + as.difftime(x, units = "days")})
+  
+test %>% 
+  filter(scenario == "lift") %>% 
+  select(contains("I_new_sympt")) %>% View
   
