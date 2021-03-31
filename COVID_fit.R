@@ -2,7 +2,35 @@
 ## Fit COVID epidemic with pomp ##
 ##################################
 
-args <- commandArgs(TRUE)
+args<-commandArgs(TRUE)
+
+set.seed(879897)
+fitting           <- TRUE          ## Small change in pomp objects if fitting or simulating
+last_date         <- as.Date(args[1])  ## Last possible date to consider for this model
+more.params.uncer <- FALSE    ## Fit with more (FALSE) or fewer (TRUE) point estimates for a number of parameters
+fit.E0            <- TRUE     ## Also fit initial # that starts the epidemic?
+## more.params.uncer = FALSE is more supported, uses parameter ranges with more research and reacts to choice of focal.county if possible
+## !!!!! For FALSE update parameters in location_params.csv
+## more.params.uncer = TRUE  is less suppored, raw parameter values that can be adjusted manually
+usable.cores      <- 2        ## Number of cores to use to fit
+fit_to_sip        <- TRUE     ## Fit beta0 and shelter in place simultaneously?
+import_cases      <- FALSE    ## Use importation of cases?
+n.mif_runs        <- 6        ## mif2 fitting parameters
+n.mif_length      <- 300
+n.mif_particles   <- 1000
+n.mif_rw.sd       <- 0.02
+n.mif_particles_LL<- 10000     ## number of particles for calculating LL (10000 used in manuscript, 5000 suggested to debug/check code)
+focal.county      <- "Santa Clara"  ## County to fit to
+## !!! Curently parameters exist for Santa Clara, Miami-Dade, New York City, King, Los Angeles
+## !!! But only Santa Clara explored
+# county.N        <- 1.938e6         ## County population size
+## !!! Now contained within location_params.csv
+nparams           <- 200             ## number of parameter sobol samples (more = longer)
+nsim              <- 200             ## number of simulations for each fitted beta0 for dynamics
+download.new_data <- FALSE           ## Grab up-to-date data from NYT?
+
+print(last_date)
+print(class(last_date))
 
 needed_packages <- c(
     "pomp"
@@ -19,35 +47,6 @@ needed_packages <- c(
 
 lapply(needed_packages, require, character.only = TRUE)
 
-print(as.numeric(args[3]))
-print(str(as.numeric(args[3])))
-
-set.seed(as.numeric(args[3]))
-fitting           <- TRUE          ## Small change in pomp objects if fitting or simulating
-last_date         <- as.Date(args[1])  ## Last possible date to consider for this model
-# fit.minus       <- 0        ## Use data until X days prior to the present # no longer in use
-more.params.uncer <- FALSE    ## Fit with more (FALSE) or fewer (TRUE) point estimates for a number of parameters
-fit.E0            <- TRUE     ## Also fit initial # that starts the epidemic?
-## more.params.uncer = FALSE is more supported, uses parameter ranges with more research and reacts to choice of focal.county if possible
-## !!!!! For FALSE update parameters in location_params.csv
-## more.params.uncer = TRUE  is less suppored, raw parameter values that can be adjusted manually
-usable.cores      <- 2#2        ## Number of cores to use to fit
-fit_to_sip        <- TRUE     ## Fit beta0 and shelter in place simultaneously?
-import_cases      <- FALSE    ## Use importation of cases?
-n.mif_runs        <- 1#2#6     ## mif2 fitting parameters
-n.mif_length      <- 50#200#300
-n.mif_particles   <- 50#200#1000
-n.mif_rw.sd       <- 0.02
-n.mif_particles_LL<- 500#500#5000     ## number of particles for calculating LL (10000 used in manuscript, 5000 suggested to debug/check code)
-focal.county      <- "Santa Clara"  ## County to fit to
-## !!! Curently parameters exist for Santa Clara, Miami-Dade, New York City, King, Los Angeles
-## !!! But only Santa Clara explored
-# county.N        <- 1.938e6         ## County population size
-## !!! Now contained within location_params.csv
-nparams           <- 2#2#100        ## number of parameter sobol samples (more = longer)
-nsim              <- 50             ## number of simulations for each fitted beta0 for dynamics
-download.new_data <- FALSE           ## Grab up-to-date data from NYT?
-
 ## Be very careful here, adjust according to your machine
 if(Sys.getenv('SLURM_JOB_ID') != ""){
   registerDoParallel(cores = (Sys.getenv("SLURM_NTASKS_PER_NODE")))
@@ -61,9 +60,9 @@ source("COVID_pomp.R")
 if (download.new_data) {
 deaths <- fread("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv")    
 } else {
-deaths <- read.csv("us-counties.txt")   
+deaths  <- read.csv("us-counties.txt")   
 }
-deaths <- deaths %>% mutate(date = as.Date(date)) %>% filter(county == focal.county)
+deaths    <- deaths %>% mutate(date = as.Date(date)) %>% filter(county == focal.county)
   
 # last_date can't be later than the last date in existing data
 last_date <- min(as.Date(last_date), max(deaths$date))
@@ -95,9 +94,8 @@ source("variable_params_less.R")
 }
 
 ## Repeat each entry for the number of repeat mif2
-# variable_params <- variable_params[rep(seq_len(nrow(variable_params)), each = n.mif_runs), ] %>% mutate(mif2_iter = rep(seq(1, n.mif_runs), nparams))
 variable_params <- variable_params[rep(seq_len(nrow(variable_params)), each = n.mif_runs), ] %>% 
-  mutate(mif2_iter = rep(args[2], nparams))
+  mutate(mif2_iter = rep(seq(1, n.mif_runs), nparams))
 
 ## Run parameters
 sim_start  <- variable_params$sim_start
@@ -112,7 +110,7 @@ SEIR.sim.ss.t.ci <- data.frame(
 , upr      = numeric(0)
 , paramset = numeric(0))
 
-fit.out <- foreach(i = 1:nrow(variable_params), .combine = list, .multicombine = TRUE) %dopar%  {
+fit.out <- foreach(i = 1:nrow(variable_params)) %dopar%  {
     
 library(pomp)
 library(dplyr)
@@ -231,7 +229,7 @@ mifs_temp <- try(silent = TRUE, { covid.fitting %>%
       if (fit.E0) {
     c(beta0              = rlnorm(1, log(0.7), 0.17)
     , soc_dist_level_sip = rlnorm(1, log(0.2), 0.2)
-    , E_init             = round(runif(1, 0, 6)))
+    , E_init             = runif(1, 0, 5))
       } else {
     c(beta0              = rlnorm(1, log(0.7), 0.17)
     , soc_dist_level_sip = rlnorm(1, log(0.2), 0.2)
@@ -240,7 +238,7 @@ mifs_temp <- try(silent = TRUE, { covid.fitting %>%
     } else {
       if (fit.E0) {
     c(beta0              = rlnorm(1, log(0.7), 0.17)
-      , E_init           = round(runif(1, 0, 6)))
+      , E_init             = runif(1, 0, 5))
       } else {
     c(beta0              = rlnorm(1, log(0.7), 0.17)
     , E0                 = variable_params[i, ]$E0)        
@@ -295,7 +293,7 @@ mifs_temp <- try(silent = TRUE, { covid.fitting %>% mif2(
       if (fit.E0) {
     c(beta0              = rlnorm(1, log(0.7), 0.17)
     , soc_dist_level_sip = rlnorm(1, log(0.2), 0.2)
-    , E_init             = round(runif(1, 0, 6)))
+    , E_init             = runif(1, 0, 5))
       } else {
     c(beta0              = rlnorm(1, log(0.7), 0.17)
     , soc_dist_level_sip = rlnorm(1, log(0.2), 0.2)
@@ -304,7 +302,7 @@ mifs_temp <- try(silent = TRUE, { covid.fitting %>% mif2(
     } else {
       if (fit.E0) {
     c(beta0              = rlnorm(1, log(0.7), 0.17)
-      , E_init           = round(runif(1, 0, 6)))
+      , E_init             = runif(1, 0, 5))
       } else {
     c(beta0              = rlnorm(1, log(0.7), 0.17)
     , E0                 = variable_params[i, ]$E0)        
@@ -352,10 +350,10 @@ mifs.ll <- try(silent = TRUE, {logmeanexp(mifs.ll, se = TRUE)})
 mifs_temp.coef <- coef(mifs_temp)
 
 if (fit_to_sip) {
- variable_params[i, "soc_dist_level_sip"]  <- mifs_temp.coef["soc_dist_level_sip"]
+ variable_params[i, "soc_dist_level_sip"] <- mifs_temp.coef["soc_dist_level_sip"]
 }
 if (fit.E0) {
- variable_params[i, "E_init"]              <- mifs_temp.coef["E_init"]
+variable_params[i, "E_init"]              <- mifs_temp.coef["E_init"]
 }
 
 variable_params[i, "beta0est"]   <- mifs_temp.coef["beta0"]
@@ -510,21 +508,19 @@ variable_params[i, ]$R0 <- with(variable_params[i, ], covid_R0(
 
 ## Clean up the objects to return 
 fixed_params <- melt(fixed_params) %>% mutate(
-  param     = names(fixed_params)
-, paramset  = variable_params$paramset[i]
-, mif2_iter = variable_params$mif2_iter[i]
-  )
+  param      = names(fixed_params)
+  , paramset  = variable_params$paramset[i]
+  , mif2_iter = variable_params$mif2_iter[i]
+)
 SEIR.sim.ss.t.ci <- SEIR.sim.ss.t.ci %>%
   mutate(
     mif2_iter = variable_params$mif2_iter[i] 
   )
 mif_traces <- as.data.frame(mif_traces) %>% mutate(
   paramset  = variable_params$paramset[i]
-, mif2_iter = variable_params$mif2_iter[i]
-, mif_step  = seq(1, nrow(mif_traces))
-  )
-
-print(i)
+  , mif2_iter = variable_params$mif2_iter[i]
+  , mif_step  = seq(1, nrow(mif_traces))
+)
 
 return(
 list(
@@ -532,8 +528,8 @@ list(
   , fixed_params     = fixed_params
   , dynamics_summary = SEIR.sim.ss.t.ci
   , mif_traces       = mif_traces
-  , data_covar       = list(county_data   = county.data
-                            , covar_table = intervention.forecast)
+  , data_covar       = list(county_data      = county.data
+                            , covar_table      = intervention.forecast)
    )
 )
 
