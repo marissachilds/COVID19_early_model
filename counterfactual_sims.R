@@ -62,5 +62,5 @@ counterfactual_sims_traj <- ldply(counterfactual_params, function(int_params){
 
 
 saveRDS(list(total_D = counterfactual_sims_D, 
-             traj = counterfactual_sims_D),
-        "output/counterfactual_sims.Rds")
+             traj = counterfactual_sims_traj),
+        "output/simulations/counterfactual_sims.Rds")
