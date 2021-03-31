@@ -1,6 +1,6 @@
 # COVID19_early_model
 
-Workflow 
+## Workflow 
 
 1. Run fit.sh which uses the dates in fit_dates.csv and COVID_fit.R to fit the model weekly. Fits are saved in output/fits
 2. Run filtering_traj.sh which uses fit_names.csv and COVID_filtering_traj.R to get filtering trajectories. Filtering trajectories are saved in output/filtering_trajectories.
