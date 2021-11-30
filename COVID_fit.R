@@ -8,7 +8,7 @@ set.seed(879897)
 fitting           <- TRUE          ## Small change in pomp objects if fitting or simulating
 last_date         <- as.Date(args[1])  ## Last possible date to consider for this model
 fit.E0            <- TRUE     ## Also fit initial # that starts the epidemic?
-## more.params.uncer = FALSE is more supported, uses parameter ranges with more research and reacts to choice of focal.county if possible
+more.params.uncer = FALSE # is more supported, uses parameter ranges with more research and reacts to choice of focal.county if possible
 ## !!!!! For FALSE update parameters in location_params.csv
 ## more.params.uncer = TRUE  is less suppored, raw parameter values that can be adjusted manually
 usable.cores      <- 2        ## Number of cores to use to fit
